@@ -1,12 +1,13 @@
 using System;
 using System.ComponentModel;
+using DataGridSample.Mvvm;
 
 namespace DataGridSample.Models
 {
     /// <summary>
     /// Model for testing variable row heights in DataGrid smooth scrolling.
     /// </summary>
-    public class VariableHeightItem : INotifyPropertyChanged
+    public class VariableHeightItem : ObservableObject
     {
         private int _id;
         private string _title = string.Empty;
@@ -17,21 +18,13 @@ namespace DataGridSample.Models
         public int Id
         {
             get => _id;
-            set
-            {
-                _id = value;
-                OnPropertyChanged(nameof(Id));
-            }
+            set => SetProperty(ref _id, value);
         }
 
         public string Title
         {
             get => _title;
-            set
-            {
-                _title = value;
-                OnPropertyChanged(nameof(Title));
-            }
+            set => SetProperty(ref _title, value);
         }
 
         /// <summary>
@@ -40,11 +33,7 @@ namespace DataGridSample.Models
         public string Description
         {
             get => _description;
-            set
-            {
-                _description = value;
-                OnPropertyChanged(nameof(Description));
-            }
+            set => SetProperty(ref _description, value);
         }
 
         /// <summary>
@@ -53,11 +42,7 @@ namespace DataGridSample.Models
         public int LineCount
         {
             get => _lineCount;
-            set
-            {
-                _lineCount = value;
-                OnPropertyChanged(nameof(LineCount));
-            }
+            set => SetProperty(ref _lineCount, value);
         }
 
         /// <summary>
@@ -66,18 +51,7 @@ namespace DataGridSample.Models
         public double ExpectedHeight
         {
             get => _rowHeight;
-            set
-            {
-                _rowHeight = value;
-                OnPropertyChanged(nameof(ExpectedHeight));
-            }
-        }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        protected virtual void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            set => SetProperty(ref _rowHeight, value);
         }
 
         /// <summary>

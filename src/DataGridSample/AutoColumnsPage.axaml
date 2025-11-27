@@ -1,8 +1,11 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:DataGridSample"
+             xmlns:viewModels="clr-namespace:DataGridSample.ViewModels"
              x:Class="DataGridSample.AutoColumnsPage"
-             x:DataType="local:AutoColumnsPage">
+             x:DataType="viewModels:AutoColumnsViewModel">
+  <UserControl.DataContext>
+    <viewModels:AutoColumnsViewModel/>
+  </UserControl.DataContext>
   <Grid RowDefinitions="Auto,Auto,*" Margin="0,0,0,4">
     <StackPanel Grid.Row="0" Orientation="Vertical" Spacing="4" Margin="0,0,0,8">
       <TextBlock Classes="h2" Text="Auto-Generated Columns" />
@@ -20,7 +23,7 @@
                        Width="120" />
       </StackPanel>
       <Button Content="Regenerate"
-              Click="OnRegenerateClick" />
+              Command="{Binding RegenerateCommand}" />
     </StackPanel>
 
     <DataGrid Grid.Row="2"
