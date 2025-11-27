@@ -24,6 +24,12 @@ namespace Avalonia.Controls
         /// <param name="e">PointerWheelEventArgs</param>
         protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
         {
+            if (!UseLogicalScrollable)
+            {
+                base.OnPointerWheelChanged(e);
+                return;
+            }
+
             var delta = e.Delta;
 
             // KeyModifiers.Shift should scroll in horizontal direction. This does not work on every platform.

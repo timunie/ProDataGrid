@@ -241,7 +241,12 @@ namespace Avalonia.Controls.Primitives
 
         private void OnScrollGesture(object? sender, ScrollGestureEventArgs e)
         {
-            e.Handled = e.Handled || (OwningGrid?.UpdateScroll(-e.Delta) ?? false);
+            if (OwningGrid?.UseLogicalScrollable != true)
+            {
+                return;
+            }
+
+            e.Handled = e.Handled || OwningGrid.UpdateScroll(-e.Delta);
         }
 
 #if DEBUG
