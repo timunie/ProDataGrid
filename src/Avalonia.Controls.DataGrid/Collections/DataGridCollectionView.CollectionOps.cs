@@ -492,14 +492,27 @@ namespace Avalonia.Collections
                 return;
             }
 
+            if (args.Action == NotifyCollectionChangedAction.Move)
+            {
+                if (args.OldItems != null)
+                {
+                    for (var i = 0; i < args.OldItems.Count; i++)
+                    {
+                        ProcessMoveEvent(args.OldItems[i], args.OldStartingIndex + i, args.NewStartingIndex + i);
+                    }
+                }
+
+                return;
+            }
+
             // fire notifications for removes
             if (args.OldItems != null &&
             (args.Action == NotifyCollectionChangedAction.Remove ||
             args.Action == NotifyCollectionChangedAction.Replace))
             {
-                foreach (var removedItem in args.OldItems)
+                for (var i = 0; i < args.OldItems.Count; i++)
                 {
-                    ProcessRemoveEvent(removedItem, args.Action == NotifyCollectionChangedAction.Replace);
+                    ProcessRemoveEvent(args.OldItems[i], args.Action == NotifyCollectionChangedAction.Replace, args.OldStartingIndex + i);
                 }
             }
 
@@ -528,11 +541,31 @@ namespace Avalonia.Collections
         /// <param name="removedItem">Item removed from the source collection</param>
         /// <param name="isReplace">Whether this was part of a Replace operation</param>
         //TODO Paging
-        private void ProcessRemoveEvent(object removedItem, bool isReplace)
+        private void ProcessRemoveEvent(object removedItem, bool isReplace, int? oldIndexHint = null)
         {
             int internalRemoveIndex = -1;
+            int removeIndex = -1;
 
-            if (IsGrouping)
+            bool usingOriginalOrder = SortDescriptions.Count == 0 && Filter == null && GroupDescriptions.Count == 0;
+
+            if (usingOriginalOrder && oldIndexHint.HasValue)
+            {
+                internalRemoveIndex = oldIndexHint.Value;
+
+                if (PageSize > 0)
+                {
+                    int pageStartIndex = PageIndex * PageSize;
+                    int pageEndIndex = (PageIndex + 1) * PageSize;
+                    removeIndex = (internalRemoveIndex >= pageStartIndex && internalRemoveIndex < pageEndIndex) ?
+                        internalRemoveIndex - pageStartIndex :
+                        -1;
+                }
+                else
+                {
+                    removeIndex = internalRemoveIndex;
+                }
+            }
+            else if (IsGrouping)
             {
                 internalRemoveIndex = PageSize > 0 ? _temporaryGroup.LeafIndexOf(removedItem) :
                 _group.LeafIndexOf(removedItem);
@@ -542,10 +575,20 @@ namespace Avalonia.Collections
                 internalRemoveIndex = InternalIndexOf(removedItem);
             }
 
-            int removeIndex = IndexOf(removedItem);
+            if (removeIndex < 0)
+            {
+                removeIndex = IndexOf(removedItem);
+            }
 
             // remove the item from the collection
-            _internalList.Remove(removedItem);
+            if (internalRemoveIndex >= 0 && internalRemoveIndex < _internalList.Count)
+            {
+                _internalList.RemoveAt(internalRemoveIndex);
+            }
+            else
+            {
+                _internalList.Remove(removedItem);
+            }
 
             // only fire the remove if it was removed from either the current page, or a previous page
             bool needToRemove = (PageSize == 0 && removeIndex >= 0) || (internalRemoveIndex < (PageIndex + 1) * PageSize);
@@ -614,6 +657,39 @@ namespace Avalonia.Collections
                     GetItemAt(PageSize - 1),
                     PageSize - 1));
                 }
+            }
+        }
+
+        /// <summary>
+        /// Process a Move operation from an INotifyCollectionChanged event handler.
+        /// Moves are handled as a remove followed by an add so existing paging
+        /// and grouping logic can update correctly.
+        /// </summary>
+        /// <param name="movedItem">Item moved in the source collection.</param>
+        /// <param name="oldIndex">Original index in the source collection.</param>
+        /// <param name="newIndex">New index in the source collection.</param>
+        private void ProcessMoveEvent(object movedItem, int oldIndex, int newIndex)
+        {
+            _ = oldIndex;
+            object oldCurrentItem = CurrentItem;
+            bool oldIsCurrentBeforeFirst = IsCurrentBeforeFirst;
+            bool oldIsCurrentAfterLast = IsCurrentAfterLast;
+
+            // Treat move as replace to avoid paging side effects when removing.
+            ProcessRemoveEvent(movedItem, isReplace: true, oldIndexHint: oldIndex);
+            ProcessAddEvent(movedItem, newIndex);
+
+            if (oldCurrentItem != null && IndexOf(oldCurrentItem) >= 0)
+            {
+                MoveCurrentTo(oldCurrentItem);
+            }
+            else if (oldIsCurrentBeforeFirst)
+            {
+                MoveCurrentToPosition(-1);
+            }
+            else if (oldIsCurrentAfterLast)
+            {
+                MoveCurrentToPosition(Count);
             }
         }
 
