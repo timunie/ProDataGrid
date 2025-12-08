@@ -5,6 +5,7 @@ using System;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Layout;
+using Avalonia.Headless.XUnit;
 using Xunit;
 
 namespace Avalonia.Controls.DataGridTests
@@ -14,7 +15,7 @@ namespace Avalonia.Controls.DataGridTests
     /// </summary>
     public class DataGridRowsPresenterTests
     {
-        [Fact]
+        [AvaloniaFact]
         public void DataGridRowsPresenter_Implements_ILogicalScrollable()
         {
             // Arrange & Act
@@ -24,7 +25,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.IsAssignableFrom<ILogicalScrollable>(presenter);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void IsLogicalScrollEnabled_Returns_False_By_Default()
         {
             // Arrange
@@ -37,7 +38,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.False(result);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void CanVerticallyScroll_Default_Is_True()
         {
             // Arrange
@@ -50,7 +51,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.True(result);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void CanHorizontallyScroll_Default_Is_False()
         {
             // Arrange
@@ -63,7 +64,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.False(result);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void CanVerticallyScroll_Can_Be_Set()
         {
             // Arrange
@@ -76,7 +77,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.False(presenter.CanVerticallyScroll);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void CanHorizontallyScroll_Can_Be_Set()
         {
             // Arrange
@@ -89,7 +90,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.True(presenter.CanHorizontallyScroll);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void Extent_Defaults_To_Zero()
         {
             // Arrange
@@ -102,7 +103,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.Equal(new Size(0, 0), extent);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void Viewport_Defaults_To_Zero()
         {
             // Arrange
@@ -115,7 +116,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.Equal(new Size(0, 0), viewport);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void Offset_Defaults_To_Zero()
         {
             // Arrange
@@ -128,7 +129,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.Equal(new Vector(0, 0), offset);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void ScrollSize_Returns_Reasonable_Defaults()
         {
             // Arrange
@@ -142,7 +143,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.Equal(22, scrollSize.Height);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void PageScrollSize_Returns_Viewport()
         {
             // Arrange
@@ -156,7 +157,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.Equal(presenter.Viewport, pageScrollSize);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void UpdateScrollInfo_Updates_Extent_And_Viewport()
         {
             // Arrange
@@ -172,7 +173,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.Equal(newViewport, presenter.Viewport);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void UpdateScrollInfo_Raises_ScrollInvalidated()
         {
             // Arrange
@@ -187,7 +188,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.True(eventRaised);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void UpdateScrollInfo_Does_Not_Raise_ScrollInvalidated_When_Values_Same()
         {
             // Arrange
@@ -206,7 +207,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.False(eventRaised);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void SyncOffset_Updates_Offset_Without_Side_Effects()
         {
             // Arrange
@@ -220,7 +221,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.Equal(new Vector(50.0, 100.0), presenter.Offset);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void Offset_Setter_Coerces_To_Valid_Range()
         {
             // Arrange
@@ -235,7 +236,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.Equal(1600, presenter.Offset.Y); // 2000 - 400
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void Offset_Setter_Coerces_Negative_Values_To_Zero()
         {
             // Arrange
@@ -249,7 +250,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.Equal(new Vector(0, 0), presenter.Offset);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void UpdateScrollInfo_Coerces_Existing_Offset()
         {
             // Arrange
@@ -265,7 +266,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.Equal(600, presenter.Offset.Y);  // 1000 - 400
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void BringIntoView_Returns_False_Without_OwningGrid()
         {
             // Arrange
@@ -278,7 +279,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.False(result);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void GetControlInDirection_Returns_Null_Without_OwningGrid()
         {
             // Arrange
@@ -293,7 +294,7 @@ namespace Avalonia.Controls.DataGridTests
 
         #region Horizontal Scrolling Tests
 
-        [Fact]
+        [AvaloniaFact]
         public void Offset_Horizontal_Changes_Are_Applied()
         {
             // Arrange
@@ -307,7 +308,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.Equal(200, presenter.Offset.X);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void Offset_Horizontal_Is_Coerced_To_Max_Scrollable()
         {
             // Arrange
@@ -321,7 +322,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.Equal(200, presenter.Offset.X);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void PageScrollSize_Reflects_Viewport_For_Horizontal()
         {
             // Arrange
@@ -335,7 +336,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.Equal(400, pageScrollSize.Width);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void ScrollSize_Has_Reasonable_Horizontal_Default()
         {
             // Arrange
@@ -348,7 +349,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.True(scrollSize.Width > 0);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void Combined_Horizontal_And_Vertical_Offset()
         {
             // Arrange
@@ -363,7 +364,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.Equal(800, presenter.Offset.Y);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void SyncOffset_Updates_Both_Dimensions()
         {
             // Arrange
@@ -382,7 +383,7 @@ namespace Avalonia.Controls.DataGridTests
 
         #region Feature Flag Tests
 
-        [Fact]
+        [AvaloniaFact]
         public void IsLogicalScrollEnabled_Returns_False_Without_OwningGrid()
         {
             // Arrange
@@ -425,7 +426,7 @@ namespace Avalonia.Controls.DataGridTests
 
         #region IScrollAnchorProvider Tests
 
-        [Fact]
+        [AvaloniaFact]
         public void DataGridRowsPresenter_Implements_IScrollAnchorProvider()
         {
             // Arrange & Act
@@ -435,7 +436,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.IsAssignableFrom<IScrollAnchorProvider>(presenter);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void CurrentAnchor_Returns_Null_Without_OwningGrid()
         {
             // Arrange
@@ -449,7 +450,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.Null(result);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void RegisterAnchorCandidate_Does_Not_Throw_Without_OwningGrid()
         {
             // Arrange
@@ -461,7 +462,7 @@ namespace Avalonia.Controls.DataGridTests
             anchorProvider.RegisterAnchorCandidate(row);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void UnregisterAnchorCandidate_Does_Not_Throw_Without_OwningGrid()
         {
             // Arrange
@@ -477,7 +478,7 @@ namespace Avalonia.Controls.DataGridTests
 
         #region IScrollSnapPointsInfo Tests
 
-        [Fact]
+        [AvaloniaFact]
         public void DataGridRowsPresenter_Implements_IScrollSnapPointsInfo()
         {
             // Arrange & Act
@@ -487,7 +488,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.IsAssignableFrom<IScrollSnapPointsInfo>(presenter);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void AreHorizontalSnapPointsRegular_Defaults_To_False()
         {
             // Arrange
@@ -501,7 +502,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.False(result);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void AreVerticalSnapPointsRegular_Defaults_To_False()
         {
             // Arrange
@@ -515,7 +516,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.False(result);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void AreHorizontalSnapPointsRegular_Can_Be_Set()
         {
             // Arrange
@@ -529,7 +530,7 @@ namespace Avalonia.Controls.DataGridTests
             Assert.True(snapInfo.AreHorizontalSnapPointsRegular);
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void AreVerticalSnapPointsRegular_Can_Be_Set()
         {
             // Arrange
@@ -599,7 +600,7 @@ namespace Avalonia.Controls.DataGridTests
 
         #region Pre-fetching Tests
 
-        [Fact]
+        [AvaloniaFact]
         public void SchedulePrefetch_Does_Not_Throw_Without_OwningGrid()
         {
             // Arrange
@@ -609,7 +610,7 @@ namespace Avalonia.Controls.DataGridTests
             presenter.SchedulePrefetch();
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void CancelPrefetch_Does_Not_Throw_Without_OwningGrid()
         {
             // Arrange
@@ -619,7 +620,7 @@ namespace Avalonia.Controls.DataGridTests
             presenter.CancelPrefetch();
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void SchedulePrefetch_Can_Be_Called_Multiple_Times()
         {
             // Arrange
