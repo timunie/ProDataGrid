@@ -65,6 +65,9 @@
     <TabItem Header="Shared SelectionModel">
       <pages:SharedSelectionPage />
     </TabItem>
+    <TabItem Header="Paging">
+      <pages:PagingSelectionPage />
+    </TabItem>
     <TabItem Header="Grouping">
       <local:GroupingPage />
     </TabItem>
