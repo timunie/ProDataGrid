@@ -23,6 +23,7 @@ namespace DataGridSample.ViewModels
             ObservableCollection<TreeItem> Children)
         {
             public bool HasScanned { get; set; }
+            public bool ScanFailed { get; set; }
         }
 
         private const int MaxEntriesPerFolder = 200;
@@ -48,7 +49,7 @@ namespace DataGridSample.ViewModels
                             return null;
                         }
 
-                        EnsureChildren(tree);
+                        EnsureChildren(tree, allowRescan: true);
                         return tree.Children;
                     }
 
@@ -132,14 +133,20 @@ namespace DataGridSample.ViewModels
                 Children: new ObservableCollection<TreeItem>());
         }
 
-        private void EnsureChildren(TreeItem parent)
+        private void EnsureChildren(TreeItem parent, bool allowRescan = false)
         {
-            if (parent.HasScanned || !parent.IsDirectory)
+            if (!parent.IsDirectory || parent.ScanFailed)
+            {
+                return;
+            }
+
+            if (parent.HasScanned && (!allowRescan || parent.Children.Count > 0))
             {
                 return;
             }
 
             parent.HasScanned = true;
+            parent.Children.Clear();
 
             try
             {
@@ -155,9 +162,12 @@ namespace DataGridSample.ViewModels
                         parent.Children.Add(child);
                     }
                 }
+
+                parent.ScanFailed = false;
             }
             catch
             {
+                parent.ScanFailed = true;
                 // Ignore directories we can't read in the sample.
             }
         }
