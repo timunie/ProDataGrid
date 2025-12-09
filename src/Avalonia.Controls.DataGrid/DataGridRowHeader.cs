@@ -201,6 +201,13 @@ namespace Avalonia.Controls.Primitives
                 {
                     OwningGrid.Focus();
                 }
+
+                if (OwningGrid != null && OwningGrid.TryToggleHierarchicalAtSlot(Slot))
+                {
+                    e.Handled = true;
+                    return;
+                }
+
                 if (OwningRow != null)
                 {
                     Debug.Assert(sender is DataGridRowHeader);
@@ -226,4 +233,3 @@ namespace Avalonia.Controls.Primitives
     }
 
 }
-

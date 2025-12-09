@@ -11,6 +11,7 @@ using Avalonia.Data;
 using Avalonia.Controls.DataGridSelection;
 using Avalonia.Controls.Selection;
 using Avalonia.Controls.DataGridFiltering;
+using Avalonia.Controls.DataGridHierarchical;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -125,6 +126,11 @@ namespace Avalonia.Controls
         private Avalonia.Controls.DataGridFiltering.DataGridFilteringAdapter _filteringAdapter;
         private Avalonia.Controls.DataGridFiltering.IDataGridFilteringModelFactory _filteringModelFactory;
         private Avalonia.Controls.DataGridFiltering.IDataGridFilteringAdapterFactory _filteringAdapterFactory;
+        private Avalonia.Controls.DataGridHierarchical.IHierarchicalModel _hierarchicalModel;
+        private Avalonia.Controls.DataGridHierarchical.DataGridHierarchicalAdapter _hierarchicalAdapter;
+        private Avalonia.Controls.DataGridHierarchical.IDataGridHierarchicalModelFactory _hierarchicalModelFactory;
+        private Avalonia.Controls.DataGridHierarchical.IDataGridHierarchicalAdapterFactory _hierarchicalAdapterFactory;
+        private bool _hierarchicalRowsEnabled;
 
         // Nth row of rows 0..N that make up the RowHeightEstimate
         private int _lastEstimatedRow;
@@ -909,6 +915,11 @@ namespace Avalonia.Controls
             return _sortingModelFactory?.Create() ?? new SortingModel();
         }
 
+        protected virtual Avalonia.Controls.DataGridHierarchical.IHierarchicalModel CreateHierarchicalModel()
+        {
+            return _hierarchicalModelFactory?.Create() ?? new Avalonia.Controls.DataGridHierarchical.HierarchicalModel();
+        }
+
         protected virtual Avalonia.Controls.DataGridFiltering.IFilteringModel CreateFilteringModel()
         {
             return _filteringModelFactory?.Create() ?? new Avalonia.Controls.DataGridFiltering.FilteringModel();
@@ -930,6 +941,33 @@ namespace Avalonia.Controls
         {
             get => _filteringModelFactory;
             set => _filteringModelFactory = value;
+        }
+
+        /// <summary>
+        /// Optional factory used when creating the default hierarchical model.
+        /// </summary>
+        public Avalonia.Controls.DataGridHierarchical.IDataGridHierarchicalModelFactory HierarchicalModelFactory
+        {
+            get => _hierarchicalModelFactory;
+            set => _hierarchicalModelFactory = value;
+        }
+
+        /// <summary>
+        /// Optional factory for creating the hierarchical adapter.
+        /// </summary>
+        public Avalonia.Controls.DataGridHierarchical.IDataGridHierarchicalAdapterFactory HierarchicalAdapterFactory
+        {
+            get => _hierarchicalAdapterFactory;
+            set => _hierarchicalAdapterFactory = value;
+        }
+
+        /// <summary>
+        /// Enables hierarchical row rendering through <see cref="HierarchicalModel"/>.
+        /// </summary>
+        public bool HierarchicalRowsEnabled
+        {
+            get => _hierarchicalRowsEnabled;
+            set => _hierarchicalRowsEnabled = value;
         }
 
         /// <summary>
@@ -1017,6 +1055,25 @@ namespace Avalonia.Controls
         }
 
         /// <summary>
+        /// Gets or sets the hierarchical model that drives tree-like rows.
+        /// </summary>
+        public Avalonia.Controls.DataGridHierarchical.IHierarchicalModel HierarchicalModel
+        {
+            get => _hierarchicalModel ?? EnsureHierarchicalModel();
+            set => SetHierarchicalModel(value);
+        }
+
+        private Avalonia.Controls.DataGridHierarchical.IHierarchicalModel EnsureHierarchicalModel()
+        {
+            if (_hierarchicalModel == null)
+            {
+                SetHierarchicalModel(null, initializing: true);
+            }
+
+            return _hierarchicalModel!;
+        }
+
+        /// <summary>
         /// Creates the adapter that connects the sorting model to the grid.
         /// </summary>
         /// <param name="model">Sorting model instance.</param>
@@ -1059,6 +1116,25 @@ namespace Avalonia.Controls
             }
 
             adapter.AttachLifecycle(OnFilteringAdapterApplying, OnFilteringAdapterApplied);
+            return adapter;
+        }
+
+        /// <summary>
+        /// Creates the adapter that connects the hierarchical model to the grid.
+        /// </summary>
+        /// <param name="model">Hierarchical model instance.</param>
+        /// <returns>Adapter bridging flattened hierarchy to grid gestures.</returns>
+        protected virtual Avalonia.Controls.DataGridHierarchical.DataGridHierarchicalAdapter CreateHierarchicalAdapter(Avalonia.Controls.DataGridHierarchical.IHierarchicalModel model)
+        {
+            var adapter = _hierarchicalAdapterFactory?.Create(this, model)
+                ?? new Avalonia.Controls.DataGridHierarchical.DataGridHierarchicalAdapter(model);
+
+            if (adapter == null)
+            {
+                throw new InvalidOperationException("Hierarchical adapter factory returned null.");
+            }
+
+            adapter.FlattenedChanged += HierarchicalAdapter_FlattenedChanged;
             return adapter;
         }
 
@@ -1174,6 +1250,14 @@ namespace Avalonia.Controls
                 RefreshSelectionFromModel();
                 RefreshColumnSortStates();
                 RefreshColumnFilterStates();
+            }
+        }
+
+        private void HierarchicalAdapter_FlattenedChanged(object sender, FlattenedChangedEventArgs e)
+        {
+            if (_hierarchicalRowsEnabled)
+            {
+                RefreshRowsAndColumns(clearRows: false);
             }
         }
 
@@ -1294,6 +1378,33 @@ namespace Avalonia.Controls
             {
                 _filteringAdapter?.AttachView(DataConnection?.CollectionView);
             }
+        }
+
+        private void SetHierarchicalModel(Avalonia.Controls.DataGridHierarchical.IHierarchicalModel model, bool initializing = false)
+        {
+            var oldModel = _hierarchicalModel;
+            var newModel = model ?? CreateHierarchicalModel();
+
+            if (ReferenceEquals(_hierarchicalModel, newModel))
+            {
+                return;
+            }
+
+            if (_hierarchicalAdapter != null)
+            {
+                _hierarchicalAdapter.FlattenedChanged -= HierarchicalAdapter_FlattenedChanged;
+                _hierarchicalAdapter.Dispose();
+                _hierarchicalAdapter = null;
+            }
+
+            _hierarchicalModel = newModel;
+
+            if (_hierarchicalModel != null)
+            {
+                _hierarchicalAdapter = CreateHierarchicalAdapter(_hierarchicalModel);
+            }
+
+            RaisePropertyChanged(HierarchicalModelProperty, oldModel, _hierarchicalModel);
         }
 
         internal SortingDescriptor GetSortingDescriptorForColumn(DataGridColumn column)

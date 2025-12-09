@@ -313,6 +313,15 @@ namespace Avalonia.Controls
                 return true;
             }
 
+            if (_hierarchicalRowsEnabled && _hierarchicalAdapter != null && CurrentSlot >= 0 && CurrentSlot < _hierarchicalAdapter.Count)
+            {
+                if (_hierarchicalAdapter.IsExpandable(CurrentSlot) && _hierarchicalAdapter.IsExpanded(CurrentSlot))
+                {
+                    _hierarchicalAdapter.Collapse(CurrentSlot);
+                    return true;
+                }
+            }
+
             int previousVisibleColumnIndex = -1;
             if (CurrentColumnIndex != -1)
             {
@@ -382,6 +391,18 @@ namespace Avalonia.Controls
             if (WaitForLostFocus(delegate { ProcessRightKey(shift, ctrl); }))
             {
                 return true;
+            }
+
+            if (_hierarchicalRowsEnabled && _hierarchicalAdapter != null && CurrentSlot >= 0 && CurrentSlot < _hierarchicalAdapter.Count)
+            {
+                if (_hierarchicalAdapter.IsExpandable(CurrentSlot))
+                {
+                    if (!_hierarchicalAdapter.IsExpanded(CurrentSlot))
+                    {
+                        _hierarchicalAdapter.Expand(CurrentSlot);
+                        return true;
+                    }
+                }
             }
 
             int nextVisibleColumnIndex = -1;
