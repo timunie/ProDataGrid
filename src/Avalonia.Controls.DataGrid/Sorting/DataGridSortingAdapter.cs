@@ -161,6 +161,16 @@ namespace Avalonia.Controls.DataGridSorting
                 return false;
             }
 
+            if (TryApplyModelToView(descriptors, previousDescriptors, out var handledChanged))
+            {
+                if (handledChanged)
+                {
+                    _afterViewRefresh?.Invoke();
+                }
+
+                return handledChanged;
+            }
+
             _suppressViewSync = true;
             bool changed = false;
             try
@@ -218,6 +228,24 @@ namespace Avalonia.Controls.DataGridSorting
             }
 
             return changed;
+        }
+
+        /// <summary>
+        /// Override to short-circuit default sort application (e.g., push descriptors upstream).
+        /// Return true to indicate the call was handled; set <paramref name="changed"/> to true
+        /// if the view was refreshed.
+        /// </summary>
+        /// <remarks>
+        /// This is intended for advanced scenarios (DynamicData/server-side sorting) where
+        /// the adapter should not rewrite <see cref="IDataGridCollectionView.SortDescriptions"/>.
+        /// </remarks>
+        protected virtual bool TryApplyModelToView(
+            IReadOnlyList<SortingDescriptor> descriptors,
+            IReadOnlyList<SortingDescriptor> previousDescriptors,
+            out bool changed)
+        {
+            changed = false;
+            return false;
         }
 
         private void SyncModelFromView()

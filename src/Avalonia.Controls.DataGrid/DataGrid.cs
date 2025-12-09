@@ -118,6 +118,7 @@ namespace Avalonia.Controls
         private Avalonia.Controls.DataGridSorting.ISortingModel _sortingModel;
         private Avalonia.Controls.DataGridSorting.DataGridSortingAdapter _sortingAdapter;
         private Avalonia.Controls.DataGridSorting.IDataGridSortingModelFactory _sortingModelFactory;
+        private Avalonia.Controls.DataGridSorting.IDataGridSortingAdapterFactory _sortingAdapterFactory;
 
         // Nth row of rows 0..N that make up the RowHeightEstimate
         private int _lastEstimatedRow;
@@ -911,6 +912,16 @@ namespace Avalonia.Controls
         }
 
         /// <summary>
+        /// Optional factory for creating the sorting adapter. Use this to plug in a custom adapter
+        /// (e.g., DynamicData/server-side sorting) without subclassing <see cref="DataGrid"/>.
+        /// </summary>
+        public IDataGridSortingAdapterFactory SortingAdapterFactory
+        {
+            get => _sortingAdapterFactory;
+            set => _sortingAdapterFactory = value;
+        }
+
+        /// <summary>
         /// Enables or disables multi-column sorting (Shift + click).
         /// </summary>
         public bool IsMultiSortEnabled
@@ -972,7 +983,7 @@ namespace Avalonia.Controls
         /// <returns>Adapter that will bridge the model to the collection view and grid.</returns>
         protected virtual DataGridSortingAdapter CreateSortingAdapter(ISortingModel model)
         {
-            return new DataGridSortingAdapter(
+            return _sortingAdapterFactory?.Create(this, model) ?? new DataGridSortingAdapter(
                 model,
                 () => ColumnsItemsInternal,
                 OnSortingAdapterApplying,
