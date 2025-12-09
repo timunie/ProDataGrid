@@ -195,4 +195,29 @@ public class HierarchicalModelTests
         Assert.Equal(2, model.Count);
         Assert.Equal("new child", ((Item)model.GetItem(1)!).Name);
     }
+
+    [Fact]
+    public void Expand_RematerializesChildren_AfterVirtualize()
+    {
+        var root = new Item("root");
+        var child = new Item("child");
+        root.Children.Add(child);
+
+        var model = new HierarchicalModel(new HierarchicalOptions
+        {
+            ChildrenSelector = item => ((Item)item).Children,
+            VirtualizeChildren = true,
+            IsLeafSelector = item => ((Item)item).Children.Count == 0
+        });
+
+        model.SetRoot(root);
+        model.Expand(model.Root!);           // realize first-level children
+        model.Collapse(model.Root!);         // virtualize children
+
+        // child should be rematerialized on next expand
+        model.Expand(model.Root!);
+
+        Assert.Equal(2, model.Count);
+        Assert.Same(child, model.GetItem(1));
+    }
 }
