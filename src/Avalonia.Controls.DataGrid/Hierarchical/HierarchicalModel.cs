@@ -1104,6 +1104,13 @@ namespace Avalonia.Controls.DataGridHierarchical
                         node,
                         node.Level + 1,
                         isLeaf: DetermineInitialLeaf(childItem));
+
+                    if (HasReachedMaxDepth(childNode))
+                    {
+                        childNode.IsLeaf = true;
+                        childNode.HasMaterializedChildren = true;
+                    }
+
                     node.MutableChildren.Add(childNode);
                 }
 

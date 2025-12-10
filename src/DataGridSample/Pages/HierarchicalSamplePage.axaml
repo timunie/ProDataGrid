@@ -9,6 +9,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:viewModels="clr-namespace:DataGridSample.ViewModels"
+    xmlns:adapters="clr-namespace:DataGridSample.Adapters"
     d:DesignHeight="720"
     d:DesignWidth="1100"
     mc:Ignorable="d">
@@ -16,6 +17,10 @@
   <UserControl.DataContext>
     <viewModels:HierarchicalSampleViewModel />
   </UserControl.DataContext>
+
+  <UserControl.Resources>
+    <adapters:HierarchicalSortingAdapterFactory x:Key="HierarchicalSortingAdapterFactory" />
+  </UserControl.Resources>
 
   <Grid Margin="12"
         RowDefinitions="Auto,Auto,*"
@@ -41,28 +46,34 @@
     </StackPanel>
 
     <DataGrid Grid.Row="2"
-              ItemsSource="{Binding Rows}"
+              ItemsSource="{Binding RowsView}"
               AutoGenerateColumns="False"
               HierarchicalModel="{Binding Model}"
+              SortingModel="{Binding SortingModel, Mode=OneWay}"
+              SortingAdapterFactory="{StaticResource HierarchicalSortingAdapterFactory}"
               HierarchicalRowsEnabled="True"
-              CanUserSortColumns="False"
+              CanUserSortColumns="True"
               HeadersVisibility="Column"
               GridLinesVisibility="Horizontal"
               SelectionMode="Single">
       <DataGrid.Columns>
         <DataGridHierarchicalColumn Header="Name"
+                                    SortMemberPath="Item.Name"
                                     Width="2*"
                                     Binding="{Binding Item.Name}" />
 
         <DataGridTextColumn Header="Kind"
+                            SortMemberPath="Item.Kind"
                             Width="120"
                             Binding="{Binding Item.Kind}" />
 
         <DataGridTextColumn Header="Size"
+                            SortMemberPath="Item.Size"
                             Width="120"
                             Binding="{Binding Item.Size, StringFormat=N0}" />
 
         <DataGridTextColumn Header="Modified"
+                            SortMemberPath="Item.Modified"
                             Width="160"
                             Binding="{Binding Item.Modified, StringFormat=yyyy-MM-dd HH:mm}" />
       </DataGrid.Columns>

@@ -4,9 +4,13 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using Avalonia.Collections;
+using Avalonia.Controls;
 using Avalonia.Controls.DataGridHierarchical;
+using Avalonia.Controls.DataGridSorting;
 using DataGridSample.Mvvm;
 
 namespace DataGridSample.ViewModels
@@ -33,11 +37,14 @@ namespace DataGridSample.ViewModels
             IgnoreInaccessible = true,
             AttributesToSkip = FileAttributes.Hidden | FileAttributes.System
         };
+        private readonly IComparer<object> _defaultComparer = new FileSystemNodeComparer();
 
         public HierarchicalSampleViewModel()
         {
             var rootPath = Path.GetPathRoot(Environment.CurrentDirectory) ?? "/";
             var root = CreateRoot(rootPath);
+            SortingModel = new SortingModel();
+            SortingModel.SortingChanged += OnSortingChanged;
             var options = new HierarchicalOptions
             {
                 ItemsSelector = item =>
@@ -58,7 +65,7 @@ namespace DataGridSample.ViewModels
                 AutoExpandRoot = true,
                 MaxAutoExpandDepth = 0,
                 VirtualizeChildren = true,
-                SiblingComparer = new FileSystemNodeComparer(),
+                SiblingComparer = _defaultComparer,
                 IsLeafSelector = item =>
                 {
                     if (item is TreeItem tree)
@@ -82,29 +89,34 @@ namespace DataGridSample.ViewModels
 
             Model = new HierarchicalModel(options);
             var adapter = new DataGridHierarchicalAdapter(Model);
-            adapter.FlattenedChanged += (_, __) => OnPropertyChanged(nameof(Rows));
+            RowsView = new DataGridCollectionView(Model.Flattened);
+            adapter.FlattenedChanged += (_, __) => RowsView.Refresh();
             Model.SetRoot(root);
 
             ExpandAllCommand = new RelayCommand(_ =>
             {
                 Model.ExpandAll();
-                OnPropertyChanged(nameof(Rows));
+                RowsView.Refresh();
             });
             CollapseAllCommand = new RelayCommand(_ =>
             {
                 Model.CollapseAll();
-                OnPropertyChanged(nameof(Rows));
+                RowsView.Refresh();
             });
             RefreshRootCommand = new RelayCommand(_ =>
             {
                 Model.Refresh(Model.Root);
-                OnPropertyChanged(nameof(Rows));
+                RowsView.Refresh();
             });
         }
 
         public IHierarchicalModel Model { get; }
 
-        public IEnumerable<HierarchicalNode> Rows => Model.Flattened;
+        public IComparer<object> DefaultComparer => _defaultComparer;
+
+        public ISortingModel SortingModel { get; }
+
+        public DataGridCollectionView RowsView { get; }
 
         public RelayCommand ExpandAllCommand { get; }
 
@@ -219,6 +231,81 @@ namespace DataGridSample.ViewModels
             }
 
             return "Item";
+        }
+
+        private void OnSortingChanged(object? sender, SortingChangedEventArgs e)
+        {
+            var descriptors = e.NewDescriptors;
+
+            if (descriptors == null || descriptors.Count == 0)
+            {
+                Model.ApplySiblingComparer(_defaultComparer, recursive: true);
+                RowsView.Refresh();
+                return;
+            }
+
+            var comparer = BuildComparer(descriptors);
+            Model.ApplySiblingComparer(comparer, recursive: true);
+            RowsView.Refresh();
+        }
+
+        private static IComparer<object> BuildComparer(IReadOnlyList<SortingDescriptor> descriptors)
+        {
+            return Comparer<object>.Create((x, y) =>
+            {
+                if (ReferenceEquals(x, y))
+                {
+                    return 0;
+                }
+
+                if (x is not TreeItem left)
+                {
+                    return -1;
+                }
+
+                if (y is not TreeItem right)
+                {
+                    return 1;
+                }
+
+                if (left.IsDirectory != right.IsDirectory)
+                {
+                    return left.IsDirectory ? -1 : 1;
+                }
+
+                foreach (var descriptor in descriptors)
+                {
+                    var path = descriptor.PropertyPath;
+                    var result = CompareByPath(left, right, path);
+                    if (result != 0)
+                    {
+                        return descriptor.Direction == ListSortDirection.Descending ? -result : result;
+                    }
+                }
+
+                return 0;
+            });
+        }
+
+        private static int CompareByPath(TreeItem left, TreeItem right, string? propertyPath)
+        {
+            switch (propertyPath)
+            {
+                case "Item.Name":
+                case "Name":
+                    return string.Compare(left.Name, right.Name, StringComparison.OrdinalIgnoreCase);
+                case "Item.Kind":
+                case "Kind":
+                    return string.Compare(left.Kind, right.Kind, StringComparison.OrdinalIgnoreCase);
+                case "Item.Size":
+                case "Size":
+                    return left.Size.CompareTo(right.Size);
+                case "Item.Modified":
+                case "Modified":
+                    return left.Modified.CompareTo(right.Modified);
+                default:
+                    return string.Compare(left.Name, right.Name, StringComparison.OrdinalIgnoreCase);
+            }
         }
 
         private sealed class FileSystemNodeComparer : IComparer<object>

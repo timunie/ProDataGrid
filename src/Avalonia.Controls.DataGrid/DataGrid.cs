@@ -977,7 +977,22 @@ namespace Avalonia.Controls
         public IDataGridSortingAdapterFactory SortingAdapterFactory
         {
             get => _sortingAdapterFactory;
-            set => _sortingAdapterFactory = value;
+            set
+            {
+                if (_sortingAdapterFactory == value)
+                {
+                    return;
+                }
+
+                _sortingAdapterFactory = value;
+
+                if (_sortingModel != null)
+                {
+                    _sortingAdapter?.Dispose();
+                    _sortingAdapter = CreateSortingAdapter(_sortingModel);
+                    UpdateSortingAdapterView();
+                }
+            }
         }
 
         /// <summary>
