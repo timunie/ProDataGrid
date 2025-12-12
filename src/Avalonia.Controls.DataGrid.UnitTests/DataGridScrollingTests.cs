@@ -59,7 +59,7 @@ public class DataGridScrollingTests
         var target = CreateTarget(items);
         
         // Act - scroll down
-        target.ScrollIntoView(items[20], target.Columns[0]);
+        target.ScrollIntoView(items[20], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
         var rows = GetRows(target);
@@ -87,7 +87,7 @@ public class DataGridScrollingTests
         // Act - scroll multiple times
         for (int scrollTo = 10; scrollTo <= 50; scrollTo += 10)
         {
-            target.ScrollIntoView(items[scrollTo], target.Columns[0]);
+            target.ScrollIntoView(items[scrollTo], target.ColumnDefinitions[0]);
             target.UpdateLayout();
             
             var rows = GetRows(target);
@@ -114,10 +114,10 @@ public class DataGridScrollingTests
         var target = CreateTarget(items);
         
         // Act - scroll down then up
-        target.ScrollIntoView(items[50], target.Columns[0]);
+        target.ScrollIntoView(items[50], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
-        target.ScrollIntoView(items[10], target.Columns[0]);
+        target.ScrollIntoView(items[10], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
         var rows = GetRows(target);
@@ -172,7 +172,7 @@ public class DataGridScrollingTests
         var initialHeight = initialRows.First().Bounds.Height;
         
         // Act - scroll
-        target.ScrollIntoView(items[30], target.Columns[0]);
+        target.ScrollIntoView(items[30], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
         var scrolledRows = GetRows(target);
@@ -201,7 +201,7 @@ public class DataGridScrollingTests
         var initialOffset = presenter.Offset;
         
         // Act
-        target.ScrollIntoView(items[20], target.Columns[0]);
+        target.ScrollIntoView(items[20], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
         // Assert - offset should have changed
@@ -217,7 +217,7 @@ public class DataGridScrollingTests
         var target = CreateTarget(items);
         
         // Act - scroll to middle
-        target.ScrollIntoView(items[30], target.Columns[0]);
+        target.ScrollIntoView(items[30], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
         var presenter = GetRowsPresenter(target);
@@ -323,11 +323,11 @@ public class DataGridScrollingTests
         var target = CreateTarget(items);
         
         // Scroll to middle first
-        target.ScrollIntoView(items[50], target.Columns[0]);
+        target.ScrollIntoView(items[50], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
         // Act - scroll back to beginning
-        target.ScrollIntoView(items[0], target.Columns[0]);
+        target.ScrollIntoView(items[0], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
         var rows = GetRows(target);
@@ -345,7 +345,7 @@ public class DataGridScrollingTests
         var target = CreateTarget(items);
         
         // Act - scroll to end
-        target.ScrollIntoView(items[99], target.Columns[0]);
+        target.ScrollIntoView(items[99], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
         var rows = GetRows(target);
@@ -780,7 +780,7 @@ public class DataGridScrollingTests
         var initialMaxIndex = initialRows.Max(r => r.Index);
         
         // Act - scroll down significantly
-        target.ScrollIntoView(items[50], target.Columns[0]);
+        target.ScrollIntoView(items[50], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
         // Get all DataGridRow controls (including hidden ones)
@@ -814,7 +814,7 @@ public class DataGridScrollingTests
         Assert.Null(FindRowForItem(target, targetItem));
 
         // Act
-        target.ScrollIntoView(targetItem, target.Columns[0]);
+        target.ScrollIntoView(targetItem, target.ColumnDefinitions[0]);
         target.UpdateLayout();
 
         // Assert
@@ -967,33 +967,30 @@ public class DataGridScrollingTests
 
         var target = new DataGrid
         {
-            Columns =
-            {
-                new DataGridTextColumn { Header = "Name", Binding = new Binding("Name") },
-                initialTemplate
-            },
             ItemsSource = items,
             HeadersVisibility = DataGridHeadersVisibility.Column,
             UseLogicalScrollable = true,
         };
+        target.ColumnsInternal.Add(new DataGridTextColumn { Header = "Name", Binding = new Binding("Name") });
+        target.ColumnsInternal.Add(initialTemplate);
 
         root.Content = target;
         root.Show();
         target.UpdateLayout();
 
         // Scroll far enough to recycle the initial rows
-        target.ScrollIntoView(items[^1], target.Columns[0]);
+        target.ScrollIntoView(items[^1], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         Assert.True(GetFirstVisibleRowIndex(target) > 0);
 
         // Act - add another template column while rows are recycled, then scroll back
-        target.Columns.Add(new DataGridTemplateColumn
+        target.ColumnsInternal.Add(new DataGridTemplateColumn
         {
             Header = "Extra",
             CellTemplate = new FuncDataTemplate<ScrollTestModel>((item, _) => new TextBlock { Text = item.Name }),
         });
 
-        target.ScrollIntoView(items[0], target.Columns[0]);
+        target.ScrollIntoView(items[0], target.ColumnDefinitions[0]);
         target.UpdateLayout();
 
         // Assert - rows are realized without throwing during recycling
@@ -1022,14 +1019,11 @@ public class DataGridScrollingTests
 
         var target = new DataGrid
         {
-            Columns =
-            {
-                new DataGridTextColumn { Header = "Name", Binding = new Binding("Name") }
-            },
             ItemsSource = items,
             HeadersVisibility = DataGridHeadersVisibility.Column,
             UseLogicalScrollable = useLogicalScrollable,
         };
+        target.ColumnsInternal.Add(new DataGridTextColumn { Header = "Name", Binding = new Binding("Name") });
 
         root.Content = target;
         root.Show();
@@ -1089,15 +1083,12 @@ public class DataGridScrollingTests
 
         var target = new DataGrid
         {
-            Columns =
-            {
-                new DataGridTextColumn { Header = "Name", Binding = new Binding("Name") },
-                new DataGridTextColumn { Header = "Group", Binding = new Binding("Group") }
-            },
             ItemsSource = collectionView,
             HeadersVisibility = DataGridHeadersVisibility.Column,
             UseLogicalScrollable = useLogicalScrollable,
         };
+        target.ColumnsInternal.Add(new DataGridTextColumn { Header = "Name", Binding = new Binding("Name") });
+        target.ColumnsInternal.Add(new DataGridTextColumn { Header = "Group", Binding = new Binding("Group") });
 
         root.Content = target;
         root.Show();
@@ -1132,11 +1123,11 @@ public class DataGridScrollingTests
 
         var target = new DataGrid
         {
-            Columns = { templateColumn },
             ItemsSource = items,
             HeadersVisibility = DataGridHeadersVisibility.Column,
             UseLogicalScrollable = true,
         };
+        target.ColumnsInternal.Add(templateColumn);
 
         root.Content = target;
         root.Show();
@@ -1160,7 +1151,7 @@ public class DataGridScrollingTests
             .ToList();
         
         // Act - scroll to bottom
-        target.ScrollIntoView(items[99], target.Columns[0]);
+        target.ScrollIntoView(items[99], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
         // Get all row controls after scroll (including hidden recycled ones)
@@ -1192,11 +1183,11 @@ public class DataGridScrollingTests
         var target = CreateTarget(items);
         
         // Act - fast scroll to bottom
-        target.ScrollIntoView(items[99], target.Columns[0]);
+        target.ScrollIntoView(items[99], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
         // Then fast scroll back to top
-        target.ScrollIntoView(items[0], target.Columns[0]);
+        target.ScrollIntoView(items[0], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
         // Get all visible rows
@@ -1236,7 +1227,7 @@ public class DataGridScrollingTests
         var target = CreateVariableHeightTarget(items, height: 200);
 
         // Scroll somewhere into the list to exercise virtualization with variable heights
-        target.ScrollIntoView(items[60], target.Columns[0]);
+        target.ScrollIntoView(items[60], target.ColumnDefinitions[0]);
         target.UpdateLayout();
 
         // Act - pick a visible row and hit-test at its center
@@ -1306,11 +1297,11 @@ public class DataGridScrollingTests
         var target = CreateGroupedTarget(items);
         
         // Act - scroll to bottom
-        target.ScrollIntoView(items[99], target.Columns[0]);
+        target.ScrollIntoView(items[99], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
         // Then scroll back to top
-        target.ScrollIntoView(items[0], target.Columns[0]);
+        target.ScrollIntoView(items[0], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
         // Get all visible elements
@@ -1343,7 +1334,7 @@ public class DataGridScrollingTests
         var target = CreateGroupedTarget(items);
         
         // Act - scroll to middle
-        target.ScrollIntoView(items[50], target.Columns[0]);
+        target.ScrollIntoView(items[50], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
         // Get all group headers
@@ -1371,11 +1362,11 @@ public class DataGridScrollingTests
         var target = CreateGroupedTarget(items, height: 300);
         
         // Act - fast scroll to bottom
-        target.ScrollIntoView(items[99], target.Columns[0]);
+        target.ScrollIntoView(items[99], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
         // Then fast scroll back to top
-        target.ScrollIntoView(items[0], target.Columns[0]);
+        target.ScrollIntoView(items[0], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
         // Get all visible group headers
@@ -1409,7 +1400,7 @@ public class DataGridScrollingTests
         // Act - perform multiple scroll operations
         for (int scrollTo = 20; scrollTo <= 80; scrollTo += 20)
         {
-            target.ScrollIntoView(items[scrollTo], target.Columns[0]);
+            target.ScrollIntoView(items[scrollTo], target.ColumnDefinitions[0]);
             target.UpdateLayout();
             
             var rows = GetRows(target).Where(r => r.IsVisible).ToList();
@@ -1439,7 +1430,7 @@ public class DataGridScrollingTests
         var target = CreateGroupedTarget(items, height: 300);
         
         // Act - scroll to middle
-        target.ScrollIntoView(items[50], target.Columns[0]);
+        target.ScrollIntoView(items[50], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
         // Get all row elements (including hidden ones)
@@ -1471,7 +1462,7 @@ public class DataGridScrollingTests
         var target = CreateGroupedTarget(items, height: 300);
         
         // Act - scroll to bottom
-        target.ScrollIntoView(items[99], target.Columns[0]);
+        target.ScrollIntoView(items[99], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
         // Get rows visible at bottom
@@ -1482,7 +1473,7 @@ public class DataGridScrollingTests
             .ToHashSet();
         
         // Scroll back to top
-        target.ScrollIntoView(items[0], target.Columns[0]);
+        target.ScrollIntoView(items[0], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
         // Get all rows and their visibility
@@ -1510,7 +1501,7 @@ public class DataGridScrollingTests
         var target = CreateGroupedTarget(items, height: 300);
         
         // Act - scroll to middle
-        target.ScrollIntoView(items[50], target.Columns[0]);
+        target.ScrollIntoView(items[50], target.ColumnDefinitions[0]);
         target.UpdateLayout();
         
         // Get DisplayData info
@@ -1557,7 +1548,7 @@ public class DataGridScrollingTests
         int[] scrollPositions = { 0, 30, 60, 90, 45, 15, 75, 0 };
         foreach (var pos in scrollPositions)
         {
-            target.ScrollIntoView(items[pos], target.Columns[0]);
+            target.ScrollIntoView(items[pos], target.ColumnDefinitions[0]);
             target.UpdateLayout();
             
             // Get all visible rows

@@ -44,7 +44,7 @@ public class DataGridRowTests
         Assert.Equal(0, GetFirstRealizedRowIndex(target));
         Assert.Equal(4, GetLastRealizedRowIndex(target));
 
-        target.ScrollIntoView(items[10], target.Columns[0]);
+        target.ScrollIntoView(items[10], target.ColumnDefinitions[0]);
         target.UpdateLayout();
 
         Assert.Equal(6, GetFirstRealizedRowIndex(target));
@@ -119,15 +119,12 @@ public class DataGridRowTests
             }
         };
 
-        var target = new DataGrid 
-        { 
-            Columns =
-            {
-                new DataGridTextColumn { Header = "Name", Binding = new Binding("Name") }
-            },
+        var target = new DataGrid
+        {
             ItemsSource = items,
             HeadersVisibility = DataGridHeadersVisibility.All,
         };
+        target.ColumnsInternal.Add(new DataGridTextColumn { Header = "Name", Binding = new Binding("Name") });
 
         if (styles is not null)
         {
