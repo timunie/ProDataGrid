@@ -25,6 +25,8 @@
   <!-- Build tooling -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
+    <PackageVersion Include="Mono.Cecil" Version="0.11.5" />
+    <PackageVersion Include="Microsoft.WindowsDesktop.App.Ref" Version="8.0.22" />
   </ItemGroup>
 
   <!-- Test packages -->
