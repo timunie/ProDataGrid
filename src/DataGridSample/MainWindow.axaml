@@ -170,6 +170,9 @@
     <TabItem Header="Hierarchical Selection">
       <pages:HierarchicalSelectionPage />
     </TabItem>
+    <TabItem Header="Hierarchical Path Selection">
+      <pages:HierarchicalPathSelectionPage />
+    </TabItem>
     <TabItem Header="Flyout Selection">
       <pages:HierarchicalFlyoutSelectionPage />
     </TabItem>
