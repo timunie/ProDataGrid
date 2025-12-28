@@ -10,6 +10,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.LogicalTree;
 using Avalonia.Media;
+using Avalonia.Controls.Presenters;
 using Avalonia.Utilities;
 using Avalonia.VisualTree;
 using Avalonia;
@@ -35,6 +36,7 @@ internal
         private int _virtualizationGuardDepth;
         private DataGrid? _owningGrid;
         private double _lastArrangeHeight;
+        private bool _lastArrangeMatchesDesired = true;
 
         internal double LastArrangeHeight => _lastArrangeHeight;
 
@@ -142,6 +144,7 @@ internal
                 }
 
                 _lastArrangeHeight = viewportHeight;
+                _lastArrangeMatchesDesired = false;
                 return base.ArrangeOverride(finalSize);
             }
 
@@ -237,6 +240,7 @@ internal
             }
 
             _lastArrangeHeight = effectiveRowsHeight;
+            _lastArrangeMatchesDesired = MatchesDesiredHeight(finalSize.Height);
 
             OwningGrid.OnFillerColumnWidthNeeded(finalSize.Width);
 
@@ -306,48 +310,81 @@ internal
         {
             if (double.IsInfinity(availableSize.Height))
             {
-                double? constrainedHeight = null;
+                var grid = OwningGrid;
+                var allowInfiniteHeight = grid != null &&
+                                          double.IsNaN(grid.Height) &&
+                                          double.IsInfinity(grid.MaxHeight);
 
-                if (!double.IsNaN(_lastArrangeHeight) && _lastArrangeHeight > 0 && !double.IsInfinity(_lastArrangeHeight))
+                if (allowInfiniteHeight && grid != null)
                 {
-                    constrainedHeight = _lastArrangeHeight;
-                }
-
-                if (OwningGrid is { } grid)
-                {
-                    if (constrainedHeight is null &&
-                        !double.IsNaN(grid.Height) &&
-                        !double.IsInfinity(grid.Height) &&
-                        grid.Height > 0)
+                    var hasItemsPresenter = false;
+                    for (var ancestor = grid.GetVisualParent(); ancestor != null; ancestor = ancestor.GetVisualParent())
                     {
-                        constrainedHeight = grid.Height;
-                    }
-                    else
-                    {
-                        var gridConstraint = LayoutHelper.ApplyLayoutConstraints(grid, availableSize).Height;
-                        if (!double.IsInfinity(gridConstraint) && !double.IsNaN(gridConstraint) && gridConstraint > 0)
+                        if (ancestor is ItemsPresenter)
                         {
-                            constrainedHeight = gridConstraint;
+                            hasItemsPresenter = true;
+                        }
+
+                        if (ancestor is ScrollViewer)
+                        {
+                            if (!hasItemsPresenter)
+                            {
+                                allowInfiniteHeight = false;
+                            }
+
+                            break;
                         }
                     }
-                    if (constrainedHeight is null && grid.Bounds.Height > 0)
+                }
+
+                if (!allowInfiniteHeight)
+                {
+                    double? constrainedHeight = null;
+
+                    if (!_lastArrangeMatchesDesired &&
+                        !double.IsNaN(_lastArrangeHeight) &&
+                        _lastArrangeHeight > 0 &&
+                        !double.IsInfinity(_lastArrangeHeight))
                     {
-                        constrainedHeight = grid.Bounds.Height;
+                        constrainedHeight = _lastArrangeHeight;
                     }
-                }
 
-                if (constrainedHeight is null && VisualRoot is TopLevel topLevel)
-                {
-                    double maxHeight = topLevel.IsArrangeValid
-                        ? topLevel.Bounds.Height
-                        : LayoutHelper.ApplyLayoutConstraints(topLevel, availableSize).Height;
+                    if (grid != null)
+                    {
+                        if (constrainedHeight is null &&
+                            !double.IsNaN(grid.Height) &&
+                            !double.IsInfinity(grid.Height) &&
+                            grid.Height > 0)
+                        {
+                            constrainedHeight = grid.Height;
+                        }
+                        else
+                        {
+                            var gridConstraint = LayoutHelper.ApplyLayoutConstraints(grid, availableSize).Height;
+                            if (!double.IsInfinity(gridConstraint) && !double.IsNaN(gridConstraint) && gridConstraint > 0)
+                            {
+                                constrainedHeight = gridConstraint;
+                            }
+                        }
+                        if (constrainedHeight is null && !_lastArrangeMatchesDesired && grid.Bounds.Height > 0)
+                        {
+                            constrainedHeight = grid.Bounds.Height;
+                        }
+                    }
 
-                    constrainedHeight = maxHeight;
-                }
+                    if (constrainedHeight is null && VisualRoot is TopLevel topLevel)
+                    {
+                        double maxHeight = topLevel.IsArrangeValid
+                            ? topLevel.Bounds.Height
+                            : LayoutHelper.ApplyLayoutConstraints(topLevel, availableSize).Height;
 
-                if (constrainedHeight is double height)
-                {
-                    availableSize = availableSize.WithHeight(height);
+                        constrainedHeight = maxHeight;
+                    }
+
+                    if (constrainedHeight is double height)
+                    {
+                        availableSize = availableSize.WithHeight(height);
+                    }
                 }
             }
 
@@ -466,6 +503,18 @@ internal
             SyncOffset(OwningGrid.HorizontalOffset, OwningGrid.GetVerticalOffset());
 
             return new Size(totalCellsWidth + headerWidth, totalHeight);
+        }
+
+        private bool MatchesDesiredHeight(double arrangedHeight)
+        {
+            var desiredHeight = DesiredSize.Height;
+            if (double.IsNaN(desiredHeight) || double.IsInfinity(desiredHeight) || desiredHeight <= 0)
+            {
+                return false;
+            }
+
+            var threshold = Math.Max(OwningGrid?.RowHeightEstimate ?? 1, 1);
+            return Math.Abs(arrangedHeight - desiredHeight) <= threshold;
         }
 
         private void OnScrollGesture(object? sender, ScrollGestureEventArgs e)
