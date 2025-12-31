@@ -777,7 +777,7 @@ namespace Avalonia.Controls
             InvalidateRowsArrange();
         }
 
-        private void SyncRowGroupHeaderInfo(DataGridRowGroupHeader groupHeader, DataGridRowGroupInfo rowGroupInfo)
+        internal void SyncRowGroupHeaderInfo(DataGridRowGroupHeader groupHeader, DataGridRowGroupInfo rowGroupInfo)
         {
             var infoChanged = !ReferenceEquals(groupHeader.RowGroupInfo, rowGroupInfo);
             if (infoChanged)
@@ -815,7 +815,7 @@ namespace Avalonia.Controls
             }
         }
 
-        private void ApplyRowGroupHeaderIndent(DataGridRowGroupHeader groupHeader)
+        internal void ApplyRowGroupHeaderIndent(DataGridRowGroupHeader groupHeader)
         {
             if (groupHeader == null)
             {

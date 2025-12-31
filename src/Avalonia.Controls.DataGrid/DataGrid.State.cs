@@ -602,12 +602,16 @@ namespace Avalonia.Controls
 
             if (DataConnection?.CollectionView is DataGridCollectionView view && state.GroupDescriptions != null)
             {
-                using (view.DeferRefresh())
+                var groupDescriptions = view.GroupDescriptions;
+                if (groupDescriptions != null && !GroupDescriptionsMatch(groupDescriptions, state.GroupDescriptions))
                 {
-                    view.GroupDescriptions.Clear();
-                    foreach (var description in state.GroupDescriptions)
+                    using (view.DeferRefresh())
                     {
-                        view.GroupDescriptions.Add(description);
+                        groupDescriptions.Clear();
+                        foreach (var description in state.GroupDescriptions)
+                        {
+                            groupDescriptions.Add(description);
+                        }
                     }
                 }
             }
@@ -618,6 +622,27 @@ namespace Avalonia.Controls
             }
 
             RefreshGroupingLayout();
+            RequestGroupingIndentationRefresh();
+        }
+
+        private static bool GroupDescriptionsMatch(
+            AvaloniaList<DataGridGroupDescription> current,
+            IReadOnlyList<DataGridGroupDescription> desired)
+        {
+            if (current == null || desired == null || current.Count != desired.Count)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < current.Count; i++)
+            {
+                if (!ReferenceEquals(current[i], desired[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         public DataGridHierarchicalState CaptureHierarchicalState(DataGridStateOptions options = null)
@@ -688,6 +713,18 @@ namespace Avalonia.Controls
         {
             if (RowGroupSublevelIndents == null || DisplayData == null)
             {
+                InvalidateRowsMeasure(invalidateIndividualElements: true);
+                InvalidateRowsArrange();
+                return;
+            }
+
+            if (DisplayData.FirstScrollingSlot < 0 || DisplayData.LastScrollingSlot < 0)
+            {
+                if (SlotCount > 0 && IsAttachedToVisualTree && IsVisible)
+                {
+                    RequestGroupingIndentationRefresh();
+                }
+
                 InvalidateRowsMeasure(invalidateIndividualElements: true);
                 InvalidateRowsArrange();
                 return;

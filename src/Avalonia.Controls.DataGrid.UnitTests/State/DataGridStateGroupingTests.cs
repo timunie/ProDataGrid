@@ -239,6 +239,150 @@ public class DataGridStateGroupingTests
         }
     }
 
+    [AvaloniaFact]
+    public void RestoreGroupingState_ReappliesIndentation_AfterMultipleRestores()
+    {
+        var items = StateTestHelper.CreateItems(18);
+        var view = new DataGridCollectionView(items);
+        view.GroupDescriptions.Add(new DataGridPathGroupDescription(nameof(StateTestItem.Category)));
+        view.GroupDescriptions.Add(new DataGridPathGroupDescription(nameof(StateTestItem.Group)));
+        view.Refresh();
+
+        var root = new Window
+        {
+            Width = 600,
+            Height = 400,
+        };
+
+        root.SetThemeStyles();
+
+        var grid = new DataGrid
+        {
+            ItemsSource = view,
+            HeadersVisibility = DataGridHeadersVisibility.Column,
+        };
+
+        grid.ColumnsInternal.Add(new DataGridTextColumn
+        {
+            Header = "Category",
+            Binding = new Binding(nameof(StateTestItem.Category)),
+        });
+        grid.ColumnsInternal.Add(new DataGridTextColumn
+        {
+            Header = "Group",
+            Binding = new Binding(nameof(StateTestItem.Group)),
+        });
+        grid.ColumnsInternal.Add(new DataGridTextColumn
+        {
+            Header = "Name",
+            Binding = new Binding(nameof(StateTestItem.Name)),
+        });
+
+        root.Content = grid;
+        root.Show();
+        PumpLayout(grid);
+
+        try
+        {
+            grid.ExpandAllGroups();
+            PumpLayout(grid);
+
+            var state = grid.CaptureGroupingState();
+            Assert.NotNull(state);
+
+            for (var i = 0; i < 3; i++)
+            {
+                view.GroupDescriptions.Clear();
+                view.Refresh();
+                PumpLayout(grid);
+
+                grid.RestoreGroupingState(state);
+                grid.ExpandAllGroups();
+                PumpLayout(grid);
+
+                AssertGroupHeaderIndentation(grid);
+            }
+        }
+        finally
+        {
+            root.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public void RestoreGroupingState_ReappliesIndentation_WhenDescriptionsUnchanged()
+    {
+        var items = StateTestHelper.CreateItems(18);
+        var view = new DataGridCollectionView(items);
+        view.GroupDescriptions.Add(new DataGridPathGroupDescription(nameof(StateTestItem.Category)));
+        view.GroupDescriptions.Add(new DataGridPathGroupDescription(nameof(StateTestItem.Group)));
+        view.Refresh();
+
+        var root = new Window
+        {
+            Width = 600,
+            Height = 400,
+        };
+
+        root.SetThemeStyles();
+
+        var grid = new DataGrid
+        {
+            ItemsSource = view,
+            HeadersVisibility = DataGridHeadersVisibility.Column,
+            AreRowGroupHeadersFrozen = true,
+        };
+
+        grid.ColumnsInternal.Add(new DataGridTextColumn
+        {
+            Header = "Category",
+            Binding = new Binding(nameof(StateTestItem.Category)),
+        });
+        grid.ColumnsInternal.Add(new DataGridTextColumn
+        {
+            Header = "Group",
+            Binding = new Binding(nameof(StateTestItem.Group)),
+        });
+        grid.ColumnsInternal.Add(new DataGridTextColumn
+        {
+            Header = "Name",
+            Binding = new Binding(nameof(StateTestItem.Name)),
+        });
+
+        root.Content = grid;
+        root.Show();
+        PumpLayout(grid);
+
+        try
+        {
+            grid.CollapseAllGroups();
+            PumpLayout(grid);
+
+            var groupA = FindGroup(view, "A");
+            var groupB = FindGroup(view, "B");
+            Assert.NotNull(groupA);
+            Assert.NotNull(groupB);
+
+            grid.ExpandRowGroup(groupA, expandAllSubgroups: false);
+            grid.ExpandRowGroup(groupB, expandAllSubgroups: false);
+            PumpLayout(grid);
+
+            var state = grid.CaptureGroupingState();
+            Assert.NotNull(state);
+
+            for (var i = 0; i < 2; i++)
+            {
+                grid.RestoreGroupingState(state);
+                PumpLayout(grid);
+                AssertVisibleGroupHeaderIndentation(grid);
+            }
+        }
+        finally
+        {
+            root.Close();
+        }
+    }
+
     private static DataGridCollectionViewGroup? FindGroup(DataGridCollectionView view, params object[] pathKeys)
     {
         IEnumerable<DataGridCollectionViewGroup> current = view.Groups?.Cast<DataGridCollectionViewGroup>();
@@ -317,6 +461,39 @@ public class DataGridStateGroupingTests
 
         Assert.NotNull(spacer);
         return spacer!.Width;
+    }
+
+    private static void AssertVisibleGroupHeaderIndentation(DataGrid grid)
+    {
+        var indents = grid.RowGroupSublevelIndents ?? Array.Empty<double>();
+
+        foreach (var slot in grid.RowGroupHeadersTable.GetIndexes())
+        {
+            if (!grid.IsSlotVisible(slot))
+            {
+                continue;
+            }
+
+            var columnIndex = grid.ColumnsInternal.FirstVisibleNonFillerColumn?.Index ?? 0;
+            if (grid.ColumnDefinitions.Count > 0)
+            {
+                grid.ScrollSlotIntoView(columnIndex, slot, forCurrentCellChange: false, forceHorizontalScroll: false);
+            }
+
+            PumpLayout(grid);
+
+            if (grid.DisplayData.GetDisplayedElement(slot) is not DataGridRowGroupHeader header)
+            {
+                throw new InvalidOperationException("Group header was not realized.");
+            }
+
+            var level = header.Level;
+            var expected = level <= 0 || indents.Length == 0
+                ? 0
+                : indents[Math.Min(level - 1, indents.Length - 1)];
+
+            Assert.Equal(expected, GetIndentSpacerWidth(header), precision: 3);
+        }
     }
 
     private static void PumpLayout(Control control)
