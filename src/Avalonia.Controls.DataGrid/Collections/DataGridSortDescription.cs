@@ -309,7 +309,24 @@ internal
             CultureInfo culture = null,
             string propertyPath = null)
         {
-            var comparer = new DataGridColumnValueAccessorComparer(accessor, culture);
+            var comparer = DataGridColumnValueAccessorComparer.Create(accessor, culture);
+            return string.IsNullOrEmpty(propertyPath)
+                ? FromComparer(comparer, direction)
+                : FromComparer(comparer, direction, propertyPath);
+        }
+
+        public static DataGridSortDescription FromAccessor<TItem, TValue>(
+            IDataGridColumnValueAccessor<TItem, TValue> accessor,
+            ListSortDirection direction = ListSortDirection.Ascending,
+            CultureInfo culture = null,
+            string propertyPath = null)
+        {
+            if (accessor == null)
+            {
+                throw new ArgumentNullException(nameof(accessor));
+            }
+
+            var comparer = new DataGridColumnValueAccessorComparer<TItem, TValue>(accessor, culture);
             return string.IsNullOrEmpty(propertyPath)
                 ? FromComparer(comparer, direction)
                 : FromComparer(comparer, direction, propertyPath);

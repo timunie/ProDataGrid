@@ -126,6 +126,17 @@ namespace Avalonia.Controls.DataGridTests.Collections
             Assert.Equal(propertyPath, comparerSort.PropertyPath);
         }
 
+        [Fact]
+        public void FromAccessor_Uses_Typed_Comparer_For_ValueType()
+        {
+            IDataGridColumnValueAccessor<NumericItem, int> accessor =
+                new DataGridColumnValueAccessor<NumericItem, int>(i => i.Value);
+            var sortDescription = DataGridSortDescription.FromAccessor(accessor, ListSortDirection.Ascending);
+
+            var comparerSort = Assert.IsType<DataGridComparerSortDescription>(sortDescription);
+            Assert.IsType<DataGridColumnValueAccessorComparer<NumericItem, int>>(comparerSort.SourceComparer);
+        }
+
         private class Item : IEquatable<Item>
         {
             public Item(string? prop1, string? prop2)
@@ -159,6 +170,16 @@ namespace Avalonia.Controls.DataGridTests.Collections
                     return ((Prop1 != null ? Prop1.GetHashCode() : 0) * 397) ^ (Prop2 != null ? Prop2.GetHashCode() : 0);
                 }
             }
+        }
+
+        private class NumericItem
+        {
+            public NumericItem(int value)
+            {
+                Value = value;
+            }
+
+            public int Value { get; }
         }
     }
 }

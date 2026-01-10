@@ -279,7 +279,7 @@ namespace Avalonia.Controls
                 {
                     if (descriptor.HasComparer)
                     {
-                        if (descriptor.Comparer is DataGridColumnValueAccessorComparer accessorComparer)
+                        if (descriptor.Comparer is IDataGridColumnValueAccessorComparer)
                         {
                             var propertyPath = descriptor.PropertyPath;
                             if (string.IsNullOrEmpty(propertyPath))
@@ -288,8 +288,8 @@ namespace Avalonia.Controls
                             }
 
                             return !string.IsNullOrEmpty(propertyPath)
-                                ? DataGridSortDescription.FromComparer(accessorComparer, descriptor.Direction, propertyPath)
-                                : DataGridSortDescription.FromComparer(accessorComparer, descriptor.Direction);
+                                ? DataGridSortDescription.FromComparer(descriptor.Comparer, descriptor.Direction, propertyPath)
+                                : DataGridSortDescription.FromComparer(descriptor.Comparer, descriptor.Direction);
                         }
 
                         return DataGridSortDescription.FromComparer(descriptor.Comparer, descriptor.Direction);
@@ -301,7 +301,7 @@ namespace Avalonia.Controls
                         if (accessor != null)
                         {
                             var culture = descriptor.Culture ?? CultureInfo.InvariantCulture;
-                            var comparer = new DataGridColumnValueAccessorComparer(accessor, culture);
+                            var comparer = DataGridColumnValueAccessorComparer.Create(accessor, culture);
                             return DataGridSortDescription.FromComparer(comparer, descriptor.Direction, descriptor.PropertyPath);
                         }
 
@@ -324,7 +324,7 @@ namespace Avalonia.Controls
                     {
                         var match = OwningGrid.DataConnection.SortDescriptions
                             .OfType<DataGridComparerSortDescription>()
-                            .FirstOrDefault(s => s.SourceComparer is DataGridColumnValueAccessorComparer accessorComparer
+                            .FirstOrDefault(s => s.SourceComparer is IDataGridColumnValueAccessorComparer accessorComparer
                                 && ReferenceEquals(accessorComparer.Accessor, accessor));
                         if (match != null)
                         {

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Reflection;
 using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Controls.DataGridSorting;
@@ -113,7 +114,58 @@ public class DataGridSortDirectionSyncTests
         Assert.Equal(definition, descriptor.ColumnId);
 
         var sort = Assert.IsType<DataGridComparerSortDescription>(Assert.Single(view.SortDescriptions));
-        Assert.IsType<DataGridColumnValueAccessorComparer>(sort.SourceComparer);
+        Assert.NotNull(GetAccessor(sort.SourceComparer));
+    }
+
+    [AvaloniaFact]
+    public void SortDirection_Uses_SortValueAccessor_When_Set()
+    {
+        var items = new ObservableCollection<Person>
+        {
+            new("Alpha", 2),
+            new("Beta", 1)
+        };
+
+        var view = new DataGridCollectionView(items);
+        var grid = CreateGridWithoutColumns(view);
+
+        var column = new DataGridTextColumn { Header = "Age" };
+        DataGridColumnSort.SetValueAccessor(column, new DataGridColumnValueAccessor<Person, int>(p => p.Age));
+
+        grid.ColumnsInternal.Add(column);
+        grid.UpdateLayout();
+
+        column.SortDirection = ListSortDirection.Ascending;
+        grid.UpdateLayout();
+
+        var ordered = view.Cast<Person>().Select(p => p.Age).ToArray();
+        Assert.Equal(new[] { 1, 2 }, ordered);
+    }
+
+    [AvaloniaFact]
+    public void SortDirection_Uses_SortValueComparer_When_Set()
+    {
+        var items = new ObservableCollection<Person>
+        {
+            new("Alpha", 2),
+            new("Beta", 1)
+        };
+
+        var view = new DataGridCollectionView(items);
+        var grid = CreateGridWithoutColumns(view);
+
+        var column = new DataGridTextColumn { Header = "Age" };
+        DataGridColumnSort.SetValueAccessor(column, new DataGridColumnValueAccessor<Person, int>(p => p.Age));
+        DataGridColumnSort.SetValueComparer(column, Comparer<int>.Create((x, y) => y.CompareTo(x)));
+
+        grid.ColumnsInternal.Add(column);
+        grid.UpdateLayout();
+
+        column.SortDirection = ListSortDirection.Ascending;
+        grid.UpdateLayout();
+
+        var ordered = view.Cast<Person>().Select(p => p.Age).ToArray();
+        Assert.Equal(new[] { 2, 1 }, ordered);
     }
 
     [AvaloniaFact]
@@ -337,7 +389,27 @@ public class DataGridSortDirectionSyncTests
         return grid;
     }
 
+    private static IDataGridColumnValueAccessor GetAccessor(object comparer)
+    {
+        var property = comparer.GetType().GetProperty("Accessor", BindingFlags.Instance | BindingFlags.Public);
+        Assert.NotNull(property);
+        return Assert.IsAssignableFrom<IDataGridColumnValueAccessor>(property.GetValue(comparer));
+    }
+
     public record Item(string Name);
+
+    private sealed class Person
+    {
+        public Person(string name, int age)
+        {
+            Name = name;
+            Age = age;
+        }
+
+        public string Name { get; }
+
+        public int Age { get; }
+    }
 
     private sealed class ReverseComparer : IComparer
     {

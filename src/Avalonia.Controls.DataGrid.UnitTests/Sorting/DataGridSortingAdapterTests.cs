@@ -1,6 +1,7 @@
 // Copyright (c) Wiesław Šoltés. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for details.
 
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -118,6 +119,42 @@ public class DataGridSortingAdapterTests
     }
 
     [AvaloniaFact]
+    public void HandleHeaderClick_Skips_When_StrictFastPath_Missing_Accessor()
+    {
+        var column = new DataGridTextColumn { SortMemberPath = "Name" };
+        var view = CreateView();
+        var model = new SortingModel();
+        var options = new DataGridFastPathOptions { UseAccessorsOnly = true };
+        DataGridFastPathMissingAccessorEventArgs captured = null;
+        options.MissingAccessor += (_, args) => captured = args;
+
+        var adapter = new DataGridSortingAdapter(model, () => new[] { column }, options);
+        adapter.AttachView(view);
+
+        adapter.HandleHeaderClick(column, KeyModifiers.None);
+
+        Assert.Empty(model.Descriptors);
+        Assert.Empty(view.SortDescriptions);
+        Assert.NotNull(captured);
+        Assert.Equal(DataGridFastPathFeature.Sorting, captured.Feature);
+        Assert.Same(column, captured.Column);
+    }
+
+    [AvaloniaFact]
+    public void HandleHeaderClick_Throws_When_StrictFastPath_ThrowEnabled()
+    {
+        var column = new DataGridTextColumn { SortMemberPath = "Name" };
+        var view = CreateView();
+        var model = new SortingModel();
+        var options = new DataGridFastPathOptions { UseAccessorsOnly = true, ThrowOnMissingAccessor = true };
+
+        var adapter = new DataGridSortingAdapter(model, () => new[] { column }, options);
+        adapter.AttachView(view);
+
+        Assert.Throws<InvalidOperationException>(() => adapter.HandleHeaderClick(column, KeyModifiers.None));
+    }
+
+    [AvaloniaFact]
     public void HandleHeaderClick_Uses_Definition_Id_When_Available()
     {
         var definition = new DataGridTextColumnDefinition
@@ -178,9 +215,58 @@ public class DataGridSortingAdapterTests
         adapter.HandleHeaderClick(column, KeyModifiers.None);
 
         var sort = Assert.IsType<DataGridComparerSortDescription>(Assert.Single(view.SortDescriptions));
-        Assert.IsType<DataGridColumnValueAccessorComparer>(sort.SourceComparer);
+        Assert.Same(accessor, GetAccessor(sort.SourceComparer));
         Assert.Single(model.Descriptors);
         Assert.True(model.Descriptors[0].HasComparer);
+    }
+
+    [AvaloniaFact]
+    public void HandleHeaderClick_Uses_SortValueAccessor_When_Set()
+    {
+        var items = new[]
+        {
+            new Person("Alpha", 2),
+            new Person("Beta", 1)
+        };
+        var view = new DataGridCollectionView(items);
+
+        var column = new DataGridTextColumn();
+        DataGridColumnMetadata.SetValueAccessor(column, new DataGridColumnValueAccessor<Person, string>(p => p.Name));
+        DataGridColumnSort.SetValueAccessor(column, new DataGridColumnValueAccessor<Person, int>(p => p.Age));
+
+        var model = new SortingModel();
+        var adapter = new DataGridSortingAdapter(model, () => new[] { column });
+        adapter.AttachView(view);
+
+        adapter.HandleHeaderClick(column, KeyModifiers.None);
+
+        var ordered = view.Cast<Person>().Select(p => p.Name).ToArray();
+        Assert.Equal(new[] { "Beta", "Alpha" }, ordered);
+    }
+
+    [AvaloniaFact]
+    public void HandleHeaderClick_Uses_SortValueComparer_When_Set()
+    {
+        var items = new[]
+        {
+            new Person("A", 1),
+            new Person("B", 2),
+            new Person("C", 3)
+        };
+        var view = new DataGridCollectionView(items);
+
+        var column = new DataGridTextColumn();
+        DataGridColumnSort.SetValueAccessor(column, new DataGridColumnValueAccessor<Person, int>(p => p.Age));
+        DataGridColumnSort.SetValueComparer(column, Comparer<int>.Create((x, y) => y.CompareTo(x)));
+
+        var model = new SortingModel();
+        var adapter = new DataGridSortingAdapter(model, () => new[] { column });
+        adapter.AttachView(view);
+
+        adapter.HandleHeaderClick(column, KeyModifiers.None);
+
+        var ordered = view.Cast<Person>().Select(p => p.Age).ToArray();
+        Assert.Equal(new[] { 3, 2, 1 }, ordered);
     }
 
     [AvaloniaFact]
@@ -247,11 +333,9 @@ public class DataGridSortingAdapterTests
         model.Toggle(new SortingDescriptor(definition, ListSortDirection.Ascending, culture: culture));
 
         var sort = Assert.IsType<DataGridComparerSortDescription>(Assert.Single(view.SortDescriptions));
-        var comparer = Assert.IsType<DataGridColumnValueAccessorComparer>(sort.SourceComparer);
-        var field = typeof(DataGridColumnValueAccessorComparer).GetField("_culture", BindingFlags.Instance | BindingFlags.NonPublic);
-
-        Assert.NotNull(field);
-        Assert.Equal(culture, field.GetValue(comparer));
+        var expected = culture.CompareInfo.Compare(items[0].Name, items[1].Name);
+        var actual = sort.SourceComparer.Compare(items[0], items[1]);
+        Assert.Equal(expected, actual);
     }
 
     [AvaloniaFact]
@@ -284,7 +368,7 @@ public class DataGridSortingAdapterTests
         model.Toggle(new SortingDescriptor(definition, ListSortDirection.Ascending, nameof(Person.Age)));
 
         var sort = Assert.IsType<DataGridComparerSortDescription>(Assert.Single(view.SortDescriptions));
-        Assert.IsType<DataGridColumnValueAccessorComparer>(sort.SourceComparer);
+        Assert.NotNull(GetAccessor(sort.SourceComparer));
         Assert.Equal(nameof(Person.Age), sort.PropertyPath);
     }
 
@@ -344,6 +428,13 @@ public class DataGridSortingAdapterTests
             new Person("B", 2),
             new Person("C", 3)
         });
+    }
+
+    private static IDataGridColumnValueAccessor GetAccessor(object comparer)
+    {
+        var property = comparer.GetType().GetProperty("Accessor", BindingFlags.Instance | BindingFlags.Public);
+        Assert.NotNull(property);
+        return Assert.IsAssignableFrom<IDataGridColumnValueAccessor>(property.GetValue(comparer));
     }
 
     private class Person

@@ -306,6 +306,7 @@ internal
         private Avalonia.Controls.DataGridSearching.DataGridSearchAdapter _searchAdapter;
         private Avalonia.Controls.DataGridSearching.IDataGridSearchModelFactory _searchModelFactory;
         private Avalonia.Controls.DataGridSearching.IDataGridSearchAdapterFactory _searchAdapterFactory;
+        private DataGridFastPathOptions _fastPathOptions;
         private Avalonia.Controls.DataGridConditionalFormatting.IConditionalFormattingModel _conditionalFormattingModel;
         private Avalonia.Controls.DataGridConditionalFormatting.DataGridConditionalFormattingAdapter _conditionalFormattingAdapter;
         private Avalonia.Controls.DataGridConditionalFormatting.IDataGridConditionalFormattingModelFactory _conditionalFormattingModelFactory;
@@ -2064,6 +2065,40 @@ internal
         }
 
         /// <summary>
+        /// Options for enabling accessor-only fast paths in sorting, filtering, and searching.
+        /// </summary>
+#if !DATAGRID_INTERNAL
+        public
+#else
+        internal
+#endif
+        DataGridFastPathOptions FastPathOptions
+        {
+            get => _fastPathOptions;
+            set
+            {
+                if (ReferenceEquals(_fastPathOptions, value))
+                {
+                    return;
+                }
+
+                if (_fastPathOptions != null)
+                {
+                    _fastPathOptions.PropertyChanged -= FastPathOptions_PropertyChanged;
+                }
+
+                _fastPathOptions = value;
+
+                if (_fastPathOptions != null)
+                {
+                    _fastPathOptions.PropertyChanged += FastPathOptions_PropertyChanged;
+                }
+
+                RefreshFastPathAdapters();
+            }
+        }
+
+        /// <summary>
         /// Optional factory for creating the conditional formatting adapter. Use this to plug in a custom
         /// adapter without subclassing <see cref="DataGrid"/>.
         /// </summary>
@@ -2257,6 +2292,7 @@ internal
                         _hierarchicalModel,
                         model,
                         () => ColumnsItemsInternal,
+                        _fastPathOptions,
                         _hierarchicalModel.Options.SiblingComparer,
                         OnSortingAdapterApplying,
                         OnSortingAdapterApplied);
@@ -2266,6 +2302,7 @@ internal
                     adapter = new DataGridSortingAdapter(
                         model,
                         () => ColumnsItemsInternal,
+                        _fastPathOptions,
                         OnSortingAdapterApplying,
                         OnSortingAdapterApplied);
                 }
@@ -2293,11 +2330,18 @@ internal
         virtual Avalonia.Controls.DataGridFiltering.DataGridFilteringAdapter CreateFilteringAdapter(Avalonia.Controls.DataGridFiltering.IFilteringModel model)
         {
             var adapter = _filteringAdapterFactory?.Create(this, model)
-                ?? new Avalonia.Controls.DataGridFiltering.DataGridFilteringAdapter(
-                    model,
-                    () => ColumnsItemsInternal,
-                    OnFilteringAdapterApplying,
-                    OnFilteringAdapterApplied);
+                ?? (_fastPathOptions?.UseAccessorsOnly == true
+                    ? new Avalonia.Controls.DataGridFiltering.DataGridAccessorFilteringAdapter(
+                        model,
+                        () => ColumnsItemsInternal,
+                        _fastPathOptions,
+                        OnFilteringAdapterApplying,
+                        OnFilteringAdapterApplied)
+                    : new Avalonia.Controls.DataGridFiltering.DataGridFilteringAdapter(
+                        model,
+                        () => ColumnsItemsInternal,
+                        OnFilteringAdapterApplying,
+                        OnFilteringAdapterApplied));
 
             if (adapter == null)
             {
@@ -2321,9 +2365,14 @@ internal
         virtual DataGridSearchAdapter CreateSearchAdapter(ISearchModel model)
         {
             var adapter = _searchAdapterFactory?.Create(this, model)
-                ?? new DataGridSearchAdapter(
-                    model,
-                    () => ColumnsItemsInternal);
+                ?? (_fastPathOptions?.UseAccessorsOnly == true
+                    ? new DataGridAccessorSearchAdapter(
+                        model,
+                        () => ColumnsItemsInternal,
+                        _fastPathOptions)
+                    : new DataGridSearchAdapter(
+                        model,
+                        () => ColumnsItemsInternal));
 
             if (adapter == null)
             {
@@ -2331,6 +2380,38 @@ internal
             }
 
             return adapter;
+        }
+
+        private void FastPathOptions_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(e.PropertyName) ||
+                e.PropertyName == nameof(DataGridFastPathOptions.UseAccessorsOnly) ||
+                e.PropertyName == nameof(DataGridFastPathOptions.ThrowOnMissingAccessor))
+            {
+                RefreshFastPathAdapters();
+            }
+        }
+
+        private void RefreshFastPathAdapters()
+        {
+            if (_sortingModel != null)
+            {
+                RecreateSortingAdapter();
+            }
+
+            if (_filteringModel != null)
+            {
+                _filteringAdapter?.Dispose();
+                _filteringAdapter = CreateFilteringAdapter(_filteringModel);
+                UpdateFilteringAdapterView();
+            }
+
+            if (_searchModel != null)
+            {
+                _searchAdapter?.Dispose();
+                _searchAdapter = CreateSearchAdapter(_searchModel);
+                UpdateSearchAdapterView();
+            }
         }
 
         /// <summary>
@@ -3891,15 +3972,9 @@ internal
                 return null;
             }
 
-            var definition = DataGridColumnMetadata.GetDefinition(column);
             foreach (var descriptor in _sortingModel.Descriptors)
             {
-                if (ReferenceEquals(descriptor.ColumnId, column))
-                {
-                    return descriptor;
-                }
-
-                if (definition != null && ReferenceEquals(descriptor.ColumnId, definition))
+                if (DataGridColumnMetadata.MatchesColumnId(column, descriptor.ColumnId))
                 {
                     return descriptor;
                 }
@@ -4026,20 +4101,38 @@ internal
             var existing = GetSortingDescriptorForColumn(column);
             var viewCulture = (DataConnection?.CollectionView as IDataGridCollectionView)?.Culture;
             var culture = viewCulture ?? existing?.Culture ?? CultureInfo.InvariantCulture;
-            var comparer = column.CustomSortComparer ?? existing?.Comparer;
             var propertyPath = column.GetSortPropertyName();
+            var columnId = existing?.ColumnId ?? DataGridColumnMetadata.GetColumnId(column);
 
             if (string.IsNullOrEmpty(propertyPath))
             {
                 propertyPath = existing?.PropertyPath;
             }
 
+            if (column.CustomSortComparer != null)
+            {
+                return new SortingDescriptor(columnId, direction, propertyPath, column.CustomSortComparer, culture);
+            }
+
+            var sortValueComparer = DataGridColumnSort.GetValueComparer(column);
+            var sortAccessor = DataGridColumnSort.GetValueAccessor(column);
+            if (sortAccessor != null || sortValueComparer != null)
+            {
+                var resolvedAccessor = sortAccessor ?? DataGridColumnMetadata.GetValueAccessor(column);
+                if (resolvedAccessor != null)
+                {
+                    var resolvedComparer = DataGridColumnValueAccessorComparer.Create(resolvedAccessor, culture, sortValueComparer);
+                    return new SortingDescriptor(columnId, direction, propertyPath, resolvedComparer, culture);
+                }
+            }
+
+            var comparer = existing?.Comparer;
             if (comparer == null)
             {
                 var accessor = DataGridColumnMetadata.GetValueAccessor(column);
                 if (accessor != null)
                 {
-                    comparer = new DataGridColumnValueAccessorComparer(accessor, culture);
+                    comparer = DataGridColumnValueAccessorComparer.Create(accessor, culture);
                 }
             }
 
@@ -4048,7 +4141,6 @@ internal
                 return null;
             }
 
-            var columnId = existing?.ColumnId ?? (object)DataGridColumnMetadata.GetDefinition(column) ?? column;
             return new SortingDescriptor(columnId, direction, propertyPath, comparer, culture);
         }
 
@@ -4106,15 +4198,9 @@ internal
                 return null;
             }
 
-            var definition = DataGridColumnMetadata.GetDefinition(column);
             foreach (var descriptor in _filteringModel.Descriptors)
             {
-                if (ReferenceEquals(descriptor.ColumnId, column))
-                {
-                    return descriptor;
-                }
-
-                if (definition != null && ReferenceEquals(descriptor.ColumnId, definition))
+                if (DataGridColumnMetadata.MatchesColumnId(column, descriptor.ColumnId))
                 {
                     return descriptor;
                 }
