@@ -1,0 +1,120 @@
+# Column Definitions: Hot Path Integration
+
+This guide focuses on wiring column definitions into sorting, filtering, searching, and other models without reflection. The goal is an AOT-friendly, fast path where models consume typed accessors.
+
+## 1. Provide accessors for every column
+
+`DataGridBindingDefinition` creates both a compiled binding and a typed value accessor. Prefer overloads that do not require dynamic code:
+
+```csharp
+var path = new CompiledBindingPathBuilder()
+    .Property(Person.NameProperty, PropertyInfoAccessorFactory.CreateAvaloniaPropertyAccessor)
+    .Build();
+
+var nameBinding = DataGridBindingDefinition.Create<Person, string>(
+    path,
+    getter: p => p.Name);
+
+var nameColumn = new DataGridTextColumnDefinition
+{
+    Header = "Name",
+    Binding = nameBinding,
+    SortMemberPath = "Name"
+};
+```
+
+For computed columns, set a value accessor directly:
+
+```csharp
+new DataGridTextColumnDefinition
+{
+    Header = "Total",
+    ValueAccessor = new DataGridColumnValueAccessor<Order, decimal>(o => o.Price * o.Quantity),
+    ValueType = typeof(decimal),
+    IsReadOnly = true
+};
+```
+
+## 2. Use column definitions as model ids
+
+Always pass the definition instance as the column id so model descriptors map to the materialized column without string lookups.
+
+```csharp
+sortingModel.Apply(new[]
+{
+    new SortingDescriptor(nameColumn, ListSortDirection.Ascending)
+});
+
+filteringModel.SetOrUpdate(new FilteringDescriptor(
+    columnId: nameColumn,
+    @operator: FilteringOperator.Contains,
+    value: "Ada",
+    stringComparison: StringComparison.OrdinalIgnoreCase));
+```
+
+## 3. Avoid reflection in filtering and searching
+
+Filtering and searching adapters fall back to property-path reflection when no accessor is available. Use adapter factories that rely on accessors (example names shown; implement these in your app):
+
+```xml
+<DataGrid FilteringModel="{Binding FilteringModel}"
+          SearchModel="{Binding SearchModel}"
+          FilteringAdapterFactory="{StaticResource AccessorFilteringAdapterFactory}"
+          SearchAdapterFactory="{StaticResource AccessorSearchAdapterFactory}"
+          ColumnDefinitionsSource="{Binding ColumnDefinitions}" />
+```
+
+An accessor-only adapter can be implemented by overriding `TryApplyModelToView` and resolving values via `DataGridColumnMetadata.GetValueAccessor` or `DataGridColumnSearch.GetTextProvider`.
+
+## 4. Sorting without path reflection
+
+Sorting uses accessors automatically when present. If you work directly with collection views, use comparer or accessor-based sort descriptions:
+
+```csharp
+var accessor = DataGridColumnMetadata.GetValueAccessor(nameColumn);
+view.SortDescriptions.Add(DataGridSortDescription.FromAccessor(accessor));
+```
+
+Avoid `DataGridSortDescription.FromPath` in AOT scenarios.
+
+## 5. Searching text sources
+
+Search uses value accessors by default. For non-string values or template columns, provide a text source:
+
+```csharp
+DataGridColumnSearch.SetTextProvider(nameColumn, item => ((Person)item).Name);
+```
+
+This keeps search highlights and navigation working without reflection.
+
+## 6. Conditional formatting and summaries
+
+Conditional formatting and summary calculations read values from accessors when available:
+
+```csharp
+formattingModel.Apply(new[]
+{
+    new ConditionalFormattingDescriptor(
+        ruleId: "OverBudget",
+        columnId: totalColumn,
+        @operator: ConditionalFormattingOperator.GreaterThan,
+        value: 1000m,
+        themeKey: "OverBudgetCellTheme")
+});
+```
+
+## 7. State, clipboard, and export
+
+- State persistence uses column definition ids by default; provide custom keys if you need stable ids across sessions.
+- Clipboard/export bindings can use `DataGridBindingDefinition` to stay compiled and typed.
+
+## 8. Grouping and other view operations
+
+`DataGridPathGroupDescription` uses property paths and reflection. For AOT scenarios, implement a custom `DataGridGroupDescription` that reads values through your accessors.
+
+## Related articles
+
+- [Column Definitions](column-definitions.md)
+- [Column Definitions (AOT-Friendly Bindings)](column-definitions-aot.md)
+- [Column Definitions (Model Integration)](column-definitions-models.md)
+- [Column Definitions (Hierarchical Columns)](column-definitions-hierarchical.md)

@@ -30,6 +30,14 @@ This reference summarizes the built-in column types shipped with ProDataGrid and
 | `DataGridTemplateColumn` | `DataTemplate` | `CellTemplate`, `CellEditingTemplate`, and `NewRowCellTemplate`. |
 | `DataGridHierarchicalColumn` | `DataGridHierarchicalPresenter` | Tree column with `Indent`; used with hierarchical models. |
 
+## Column Definitions (MVVM)
+
+Each built-in column has a corresponding `*ColumnDefinition` type for use with `ColumnDefinitionsSource`. Definition property names mirror the column properties, and bindings are expressed with `DataGridBindingDefinition.Create<TItem, TValue>(...)` using either expression-based overloads or AOT-friendly overloads that accept a prebuilt `CompiledBindingPath` or `IPropertyInfo`. Expression-based overloads require dynamic code generation.
+
+- For details and AOT guidance, see [Column Definitions](column-definitions.md) and [Column Definitions: AOT-Friendly Bindings](column-definitions-aot.md).
+- Example: `DataGridTextColumn` → `DataGridTextColumnDefinition`.
+- Template definitions use string keys (`CellTemplateKey`, `CellEditingTemplateKey`, `NewRowCellTemplateKey`) resolved from grid or application resources.
+
 ## Tips
 
 - Prefer built-in columns over templates when possible; they wire editing, validation, and theme resources for you.
