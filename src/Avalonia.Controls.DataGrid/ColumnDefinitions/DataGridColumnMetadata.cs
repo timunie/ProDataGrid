@@ -86,5 +86,60 @@ namespace Avalonia.Controls
         {
             column?.ClearValue(ValueTypeProperty);
         }
+
+        internal static object GetDefinitionKey(DataGridColumnDefinition definition)
+        {
+            if (definition == null)
+            {
+                return null;
+            }
+
+            return definition.ColumnKey ?? (object)definition;
+        }
+
+        internal static object GetColumnId(DataGridColumn column)
+        {
+            if (column == null)
+            {
+                return null;
+            }
+
+            var definition = GetDefinition(column);
+            if (definition != null)
+            {
+                return GetDefinitionKey(definition);
+            }
+
+            return column;
+        }
+
+        internal static bool MatchesColumnId(DataGridColumn column, object columnId)
+        {
+            if (column == null || columnId == null)
+            {
+                return false;
+            }
+
+            if (ReferenceEquals(columnId, column))
+            {
+                return true;
+            }
+
+            var definition = GetDefinition(column);
+            if (definition != null)
+            {
+                if (ReferenceEquals(columnId, definition))
+                {
+                    return true;
+                }
+
+                if (definition.ColumnKey != null && Equals(definition.ColumnKey, columnId))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
     }
 }

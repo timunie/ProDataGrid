@@ -8,6 +8,9 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Avalonia;
+using Avalonia.Controls.DataGridFiltering;
+using Avalonia.Controls.DataGridSearching;
+using Avalonia.Controls.DataGridSorting;
 using Avalonia.Controls.Templates;
 using Avalonia.Styling;
 
@@ -77,9 +80,11 @@ namespace Avalonia.Controls
         private ListSortDirection? _sortDirection;
         private string _sortMemberPath;
         private object _tag;
+        private object _columnKey;
         private System.Collections.IComparer _customSortComparer;
         private IDataGridColumnValueAccessor _valueAccessor;
         private Type _valueType;
+        private DataGridColumnDefinitionOptions _options;
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -215,6 +220,12 @@ namespace Avalonia.Controls
             set => SetProperty(ref _tag, value);
         }
 
+        public object ColumnKey
+        {
+            get => _columnKey;
+            set => SetProperty(ref _columnKey, value);
+        }
+
         public System.Collections.IComparer CustomSortComparer
         {
             get => _customSortComparer;
@@ -231,6 +242,32 @@ namespace Avalonia.Controls
         {
             get => _valueType;
             set => SetProperty(ref _valueType, value);
+        }
+
+        public DataGridColumnDefinitionOptions Options
+        {
+            get => _options;
+            set
+            {
+                if (ReferenceEquals(_options, value))
+                {
+                    return;
+                }
+
+                if (_options != null)
+                {
+                    _options.PropertyChanged -= Options_PropertyChanged;
+                }
+
+                _options = value;
+
+                if (_options != null)
+                {
+                    _options.PropertyChanged += Options_PropertyChanged;
+                }
+
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Options)));
+            }
         }
 
         internal DataGridColumn CreateColumn(DataGridColumnDefinitionContext context)
@@ -391,6 +428,8 @@ namespace Avalonia.Controls
             {
                 DataGridColumnMetadata.ClearValueType(column);
             }
+
+            ApplyOptions(column);
         }
 
         protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
@@ -403,6 +442,93 @@ namespace Avalonia.Controls
             field = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
             return true;
+        }
+
+        private void Options_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Options)));
+        }
+
+        private void ApplyOptions(DataGridColumn column)
+        {
+            if (column == null)
+            {
+                return;
+            }
+
+            var options = Options;
+
+            if (options?.IsSearchable.HasValue == true)
+            {
+                DataGridColumnSearch.SetIsSearchable(column, options.IsSearchable.Value);
+            }
+            else
+            {
+                column.ClearValue(DataGridColumnSearch.IsSearchableProperty);
+            }
+
+            if (options?.SearchMemberPath != null)
+            {
+                DataGridColumnSearch.SetSearchMemberPath(column, options.SearchMemberPath);
+            }
+            else
+            {
+                column.ClearValue(DataGridColumnSearch.SearchMemberPathProperty);
+            }
+
+            if (options?.SearchTextProvider != null)
+            {
+                DataGridColumnSearch.SetTextProvider(column, options.SearchTextProvider);
+            }
+            else
+            {
+                column.ClearValue(DataGridColumnSearch.TextProviderProperty);
+            }
+
+            if (options?.SearchFormatProvider != null)
+            {
+                DataGridColumnSearch.SetFormatProvider(column, options.SearchFormatProvider);
+            }
+            else
+            {
+                column.ClearValue(DataGridColumnSearch.FormatProviderProperty);
+            }
+
+            if (options?.FilterPredicateFactory != null)
+            {
+                DataGridColumnFilter.SetPredicateFactory(column, options.FilterPredicateFactory);
+            }
+            else
+            {
+                column.ClearValue(DataGridColumnFilter.PredicateFactoryProperty);
+            }
+
+            if (options?.FilterValueAccessor != null)
+            {
+                DataGridColumnFilter.SetValueAccessor(column, options.FilterValueAccessor);
+            }
+            else
+            {
+                column.ClearValue(DataGridColumnFilter.ValueAccessorProperty);
+            }
+
+            if (options?.SortValueAccessor != null)
+            {
+                DataGridColumnSort.SetValueAccessor(column, options.SortValueAccessor);
+            }
+            else
+            {
+                column.ClearValue(DataGridColumnSort.ValueAccessorProperty);
+            }
+
+            if (options?.SortValueComparer != null)
+            {
+                DataGridColumnSort.SetValueComparer(column, options.SortValueComparer);
+            }
+            else
+            {
+                column.ClearValue(DataGridColumnSort.ValueComparerProperty);
+            }
         }
     }
 }

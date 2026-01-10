@@ -62,15 +62,11 @@ namespace Avalonia.Controls.DataGridFiltering
                 throw new ArgumentException("Custom filtering requires a predicate.", nameof(predicate));
             }
 
-            if (predicate == null && string.IsNullOrEmpty(propertyPath))
+            if (predicate == null && string.IsNullOrEmpty(propertyPath) && columnId == null)
             {
-                if (columnId is not Avalonia.Controls.DataGridColumn &&
-                    columnId is not Avalonia.Controls.DataGridColumnDefinition)
-                {
-                    throw new ArgumentException(
-                        "Filtering descriptors require either a property path, a custom predicate, or a column id.",
-                        nameof(propertyPath));
-                }
+                throw new ArgumentException(
+                    "Filtering descriptors require either a property path, a custom predicate, or a column id.",
+                    nameof(propertyPath));
             }
         }
 

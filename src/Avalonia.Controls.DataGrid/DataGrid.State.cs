@@ -1065,14 +1065,14 @@ namespace Avalonia.Controls
             var definition = DataGridColumnMetadata.GetDefinition(column);
             if (definition != null)
             {
-                return definition;
+                return DataGridColumnMetadata.GetDefinitionKey(definition);
             }
 
             foreach (var pair in _columnDefinitionMap)
             {
                 if (ReferenceEquals(pair.Value, column))
                 {
-                    return pair.Key;
+                    return DataGridColumnMetadata.GetDefinitionKey(pair.Key);
                 }
             }
 
@@ -1164,6 +1164,12 @@ namespace Avalonia.Controls
                 }
             }
 
+            column = FindColumnByDefinitionKey(key);
+            if (column != null)
+            {
+                return column;
+            }
+
             var resolver = options?.ColumnKeyResolver;
             if (resolver != null)
             {
@@ -1204,6 +1210,46 @@ namespace Avalonia.Controls
             if (fallbackIndex >= 0 && ColumnsItemsInternal != null && fallbackIndex < ColumnsItemsInternal.Count)
             {
                 return ColumnsItemsInternal[fallbackIndex];
+            }
+
+            return null;
+        }
+
+        private DataGridColumn FindColumnByDefinitionKey(object key)
+        {
+            if (key == null)
+            {
+                return null;
+            }
+
+            foreach (var pair in _columnDefinitionMap)
+            {
+                var definitionKey = pair.Key?.ColumnKey;
+                if (definitionKey != null && Equals(definitionKey, key))
+                {
+                    return pair.Value;
+                }
+            }
+
+            if (ColumnsItemsInternal == null)
+            {
+                return null;
+            }
+
+            foreach (var candidate in ColumnsItemsInternal)
+            {
+                if (candidate == null ||
+                    candidate == ColumnsInternal.FillerColumn ||
+                    candidate == ColumnsInternal.RowGroupSpacerColumn)
+                {
+                    continue;
+                }
+
+                var definition = DataGridColumnMetadata.GetDefinition(candidate);
+                if (definition?.ColumnKey != null && Equals(definition.ColumnKey, key))
+                {
+                    return candidate;
+                }
             }
 
             return null;

@@ -118,6 +118,77 @@ public class DataGridColumnDefinitionsTests
     }
 
     [AvaloniaFact]
+    public void ColumnDefinitionsSource_Moves_Columns_When_Definitions_Move()
+    {
+        var definitions = new ObservableCollection<DataGridColumnDefinition>
+        {
+            new DataGridTextColumnDefinition
+            {
+                Header = "First",
+                Binding = DataGridBindingDefinition.Create<Person, string>(p => p.Name)
+            },
+            new DataGridTextColumnDefinition
+            {
+                Header = "Second",
+                Binding = DataGridBindingDefinition.Create<Person, string>(p => p.Name)
+            },
+            new DataGridTextColumnDefinition
+            {
+                Header = "Third",
+                Binding = DataGridBindingDefinition.Create<Person, string>(p => p.Name)
+            }
+        };
+
+        var grid = new DataGrid
+        {
+            ColumnDefinitionsSource = definitions
+        };
+
+        var columns = GetNonFillerColumns(grid);
+        Assert.Equal(new[] { "First", "Second", "Third" }, columns.Select(c => c.Header));
+
+        definitions.Move(0, 2);
+
+        columns = GetNonFillerColumns(grid);
+        Assert.Equal(new[] { "Second", "Third", "First" }, columns.Select(c => c.Header));
+    }
+
+    [AvaloniaFact]
+    public void ColumnDefinitionsSource_Replaces_Columns_When_Definitions_Replace()
+    {
+        var definitions = new ObservableCollection<DataGridColumnDefinition>
+        {
+            new DataGridTextColumnDefinition
+            {
+                Header = "First",
+                Binding = DataGridBindingDefinition.Create<Person, string>(p => p.Name)
+            },
+            new DataGridTextColumnDefinition
+            {
+                Header = "Second",
+                Binding = DataGridBindingDefinition.Create<Person, string>(p => p.Name)
+            }
+        };
+
+        var grid = new DataGrid
+        {
+            ColumnDefinitionsSource = definitions
+        };
+
+        var oldColumn = GetNonFillerColumns(grid)[1];
+
+        definitions[1] = new DataGridTextColumnDefinition
+        {
+            Header = "Replacement",
+            Binding = DataGridBindingDefinition.Create<Person, string>(p => p.Name)
+        };
+
+        var columns = GetNonFillerColumns(grid);
+        Assert.Equal(new[] { "First", "Replacement" }, columns.Select(c => c.Header));
+        Assert.DoesNotContain(oldColumn, columns);
+    }
+
+    [AvaloniaFact]
     public void ColumnDefinitionsSource_Updates_On_Definition_Change()
     {
         var definition = new DataGridTextColumnDefinition
@@ -139,6 +210,85 @@ public class DataGridColumnDefinitionsTests
 
         Assert.Equal("Display Name", column.Header);
         Assert.Same(column, GetNonFillerColumns(grid).Single());
+    }
+
+    [AvaloniaFact]
+    public void ColumnDefinitionsSource_Respects_DisplayIndex()
+    {
+        var definitions = new ObservableCollection<DataGridColumnDefinition>
+        {
+            new DataGridTextColumnDefinition
+            {
+                Header = "First",
+                DisplayIndex = 1,
+                Binding = DataGridBindingDefinition.Create<Person, string>(p => p.Name)
+            },
+            new DataGridTextColumnDefinition
+            {
+                Header = "Second",
+                DisplayIndex = 0,
+                Binding = DataGridBindingDefinition.Create<Person, string>(p => p.Name)
+            },
+            new DataGridTextColumnDefinition
+            {
+                Header = "Third",
+                Binding = DataGridBindingDefinition.Create<Person, string>(p => p.Name)
+            }
+        };
+
+        var grid = new DataGrid
+        {
+            ColumnDefinitionsSource = definitions
+        };
+
+        var columns = GetNonFillerColumns(grid);
+        var first = columns.Single(c => Equals(c.Header, "First"));
+        var second = columns.Single(c => Equals(c.Header, "Second"));
+        var third = columns.Single(c => Equals(c.Header, "Third"));
+
+        Assert.Equal(1, first.DisplayIndex);
+        Assert.Equal(0, second.DisplayIndex);
+        Assert.Equal(2, third.DisplayIndex);
+    }
+
+    [AvaloniaFact]
+    public void ColumnDefinitionsSource_Keeps_DisplayIndex_On_Collection_Changes()
+    {
+        var definitions = new ObservableCollection<DataGridColumnDefinition>
+        {
+            new DataGridTextColumnDefinition
+            {
+                Header = "First",
+                DisplayIndex = 1,
+                Binding = DataGridBindingDefinition.Create<Person, string>(p => p.Name)
+            },
+            new DataGridTextColumnDefinition
+            {
+                Header = "Second",
+                DisplayIndex = 0,
+                Binding = DataGridBindingDefinition.Create<Person, string>(p => p.Name)
+            }
+        };
+
+        var grid = new DataGrid
+        {
+            ColumnDefinitionsSource = definitions
+        };
+
+        definitions.Add(new DataGridTextColumnDefinition
+        {
+            Header = "Third",
+            Binding = DataGridBindingDefinition.Create<Person, string>(p => p.Name)
+        });
+
+        var columns = GetNonFillerColumns(grid);
+        var first = columns.Single(c => Equals(c.Header, "First"));
+        var second = columns.Single(c => Equals(c.Header, "Second"));
+        var third = columns.Single(c => Equals(c.Header, "Third"));
+
+        Assert.Equal(1, first.DisplayIndex);
+        Assert.Equal(0, second.DisplayIndex);
+        Assert.Equal(2, third.DisplayIndex);
     }
 
     [AvaloniaFact]
@@ -325,6 +475,49 @@ public class DataGridColumnDefinitionsTests
         Dispatcher.UIThread.RunJobs();
 
         Assert.Equal("Ada", textBlock.Text);
+    }
+
+    [AvaloniaFact]
+    public void ColumnDefinitionBuilder_Creates_Bound_TextColumn()
+    {
+        var propertyInfo = new ClrPropertyInfo(
+            nameof(Person.Name),
+            target => ((Person)target).Name,
+            (target, value) => ((Person)target).Name = (string)value,
+            typeof(string));
+
+        var definition = DataGridColumnDefinitionBuilder.For<Person>()
+            .Text("Name", propertyInfo, GetName, SetName);
+
+        var grid = new DataGrid
+        {
+            ColumnDefinitionsSource = new ObservableCollection<DataGridColumnDefinition> { definition }
+        };
+
+        var column = Assert.IsType<DataGridTextColumn>(GetNonFillerColumns(grid).Single());
+        var accessor = DataGridColumnMetadata.GetValueAccessor(column);
+        Assert.NotNull(accessor);
+        Assert.Equal("Ada", accessor.GetValue(new Person { Name = "Ada" }));
+    }
+
+    [AvaloniaFact]
+    public void ColumnKey_Maps_To_Metadata_Id()
+    {
+        var definition = new DataGridTextColumnDefinition
+        {
+            Header = "Name",
+            ColumnKey = "name-key",
+            Binding = DataGridBindingDefinition.Create<Person, string>(p => p.Name)
+        };
+
+        var grid = new DataGrid
+        {
+            ColumnDefinitionsSource = new ObservableCollection<DataGridColumnDefinition> { definition }
+        };
+
+        var column = Assert.IsType<DataGridTextColumn>(GetNonFillerColumns(grid).Single());
+        Assert.True(DataGridColumnMetadata.MatchesColumnId(column, "name-key"));
+        Assert.True(DataGridColumnMetadata.MatchesColumnId(column, definition));
     }
 
     [AvaloniaFact]
