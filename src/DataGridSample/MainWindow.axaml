@@ -230,6 +230,27 @@
     <TabItem Header="Bindable Columns">
       <pages:BindableColumnsPage />
     </TabItem>
+    <TabItem Header="Column Definitions">
+      <pages:ColumnDefinitionsPage />
+    </TabItem>
+    <TabItem Header="Column Definitions - Filtering">
+      <pages:ColumnDefinitionsFilteringModelPage />
+    </TabItem>
+    <TabItem Header="Column Definitions - Sorting">
+      <pages:ColumnDefinitionsSortingModelPage />
+    </TabItem>
+    <TabItem Header="Column Definitions - Search">
+      <pages:ColumnDefinitionsSearchModelPage />
+    </TabItem>
+    <TabItem Header="Column Definitions - Streaming Models">
+      <pages:ColumnDefinitionsStreamingModelsPage />
+    </TabItem>
+    <TabItem Header="Column Definitions - Hierarchical">
+      <pages:ColumnDefinitionsHierarchicalPage />
+    </TabItem>
+    <TabItem Header="Column Definitions - Hierarchical Streaming">
+      <pages:ColumnDefinitionsHierarchicalStreamingPage />
+    </TabItem>
     <TabItem Header="Programmatic Columns">
       <pages:DynamicColumnsPage />
     </TabItem>
