@@ -695,7 +695,7 @@ internal
             if (change.Property == DataContextProperty)
             {
                 var owner = OwningGrid;
-                if (owner != null && this.IsRecycled)
+                if (owner != null && this.IsRecycled && owner.VisualRoot != null)
                 {
                     var columns = owner.ColumnsItemsInternal;
                     var nc = columns.Count;
