@@ -171,6 +171,7 @@ internal
         {
             base.OnDetachedFromVisualTree(e);
             _scrollStateManager.Capture(preserveOnAttach: true);
+            UnloadElements(recycle: true);
             // When wired to INotifyCollectionChanged, the DataGrid will be cleaned up by GC
             if (DataConnection.DataSource != null && DataConnection.EventsWired)
             {

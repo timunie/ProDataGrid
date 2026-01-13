@@ -374,6 +374,7 @@ namespace Avalonia.Controls
                         }
                         if (!(recycle && row.IsRecyclable))
                         {
+                            ClearContainerForItemOverride(row, row.DataContext);
                             row.DetachFromDataGrid(recycle && row.IsRecyclable /*recycle*/);
                         }
                     }
