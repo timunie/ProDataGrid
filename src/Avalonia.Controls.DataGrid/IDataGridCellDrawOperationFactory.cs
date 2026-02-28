@@ -3,6 +3,7 @@
 
 #nullable disable
 
+using System;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Rendering.SceneGraph;
@@ -63,6 +64,60 @@ namespace Avalonia.Controls
         /// <param name="arrangedSize">Arranged size returned by the provider.</param>
         /// <returns><c>true</c> when arranged size was provided and should be used; otherwise <c>false</c>.</returns>
         bool TryArrange(DataGridCellDrawOperationArrangeContext context, out Size arrangedSize);
+    }
+
+#if !DATAGRID_INTERNAL
+    public
+#else
+    internal
+#endif
+    /// <summary>
+    /// Describes an explicit invalidation request emitted by a draw-operation factory.
+    /// </summary>
+    sealed class DataGridCellDrawOperationInvalidatedEventArgs : EventArgs
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DataGridCellDrawOperationInvalidatedEventArgs"/> class.
+        /// </summary>
+        /// <param name="invalidateMeasure">
+        /// <c>true</c> to invalidate measure/arrange in addition to render; otherwise <c>false</c>.
+        /// </param>
+        /// <param name="clearTextLayoutCache">
+        /// <c>true</c> to clear shared text-layout cache before refreshing realized cells; otherwise <c>false</c>.
+        /// </param>
+        public DataGridCellDrawOperationInvalidatedEventArgs(
+            bool invalidateMeasure = false,
+            bool clearTextLayoutCache = false)
+        {
+            InvalidateMeasure = invalidateMeasure;
+            ClearTextLayoutCache = clearTextLayoutCache;
+        }
+
+        /// <summary>
+        /// Gets a value indicating whether layout should be invalidated along with render.
+        /// </summary>
+        public bool InvalidateMeasure { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether shared text-layout cache should be cleared.
+        /// </summary>
+        public bool ClearTextLayoutCache { get; }
+    }
+
+#if !DATAGRID_INTERNAL
+    public
+#else
+    internal
+#endif
+    /// <summary>
+    /// Optional interface for factories that can request redraw/re-measure of realized custom-drawing cells.
+    /// </summary>
+    interface IDataGridCellDrawOperationInvalidationSource
+    {
+        /// <summary>
+        /// Raised when realized cells using this factory should be invalidated.
+        /// </summary>
+        event EventHandler<DataGridCellDrawOperationInvalidatedEventArgs> Invalidated;
     }
 
 #if !DATAGRID_INTERNAL

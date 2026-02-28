@@ -11,6 +11,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Styling;
+using Avalonia.Threading;
 
 namespace Avalonia.Controls
 {
@@ -28,6 +29,7 @@ internal
         private readonly Lazy<ControlTheme> _cellCustomDrawingTheme;
         private readonly Lazy<ControlTheme> _cellTextBoxTheme;
         private readonly DataGridCustomDrawingTextLayoutCache _sharedTextLayoutCache;
+        private IDataGridCellDrawOperationFactory _subscribedInvalidationFactory;
 
         protected ControlTheme CellCustomDrawingTheme => GetThemeValue(_cellCustomDrawingTheme);
         protected ControlTheme CellTextBoxTheme => GetThemeValue(_cellTextBoxTheme);
@@ -179,6 +181,82 @@ internal
             set => SetValue(DrawOperationLayoutFastPathProperty, value);
         }
 
+        /// <summary>
+        /// Gets or sets render invalidation token for realized custom drawing cells.
+        /// Incrementing this value forces redraw.
+        /// </summary>
+        public static readonly StyledProperty<int> RenderInvalidationTokenProperty =
+            DataGridCustomDrawingCell.RenderInvalidationTokenProperty.AddOwner<DataGridCustomDrawingColumn>();
+
+        /// <summary>
+        /// Gets or sets render invalidation token for realized custom drawing cells.
+        /// Incrementing this value forces redraw.
+        /// </summary>
+        public int RenderInvalidationToken
+        {
+            get => GetValue(RenderInvalidationTokenProperty);
+            set => SetValue(RenderInvalidationTokenProperty, value);
+        }
+
+        /// <summary>
+        /// Gets or sets layout invalidation token for realized custom drawing cells.
+        /// Incrementing this value forces measure/arrange and redraw.
+        /// </summary>
+        public static readonly StyledProperty<int> LayoutInvalidationTokenProperty =
+            DataGridCustomDrawingCell.LayoutInvalidationTokenProperty.AddOwner<DataGridCustomDrawingColumn>();
+
+        /// <summary>
+        /// Gets or sets layout invalidation token for realized custom drawing cells.
+        /// Incrementing this value forces measure/arrange and redraw.
+        /// </summary>
+        public int LayoutInvalidationToken
+        {
+            get => GetValue(LayoutInvalidationTokenProperty);
+            set => SetValue(LayoutInvalidationTokenProperty, value);
+        }
+
+        /// <summary>
+        /// Invalidates realized custom drawing cells for this column.
+        /// </summary>
+        /// <param name="invalidateMeasure">
+        /// <c>true</c> to invalidate measure/arrange in addition to render; otherwise <c>false</c>.
+        /// </param>
+        /// <param name="clearSharedTextLayoutCache">
+        /// <c>true</c> to clear shared text-layout cache before refreshing cells; otherwise <c>false</c>.
+        /// </param>
+        public void InvalidateCustomDrawingCells(
+            bool invalidateMeasure = false,
+            bool clearSharedTextLayoutCache = false)
+        {
+            if (!Dispatcher.UIThread.CheckAccess())
+            {
+                Dispatcher.UIThread.Post(
+                    () => InvalidateCustomDrawingCells(invalidateMeasure, clearSharedTextLayoutCache),
+                    DispatcherPriority.Render);
+                return;
+            }
+
+            if (clearSharedTextLayoutCache)
+            {
+                _sharedTextLayoutCache.Clear();
+            }
+
+            unchecked
+            {
+                RenderInvalidationToken++;
+            }
+
+            if (!invalidateMeasure)
+            {
+                return;
+            }
+
+            unchecked
+            {
+                LayoutInvalidationToken++;
+            }
+        }
+
         protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
         {
             base.OnPropertyChanged(change);
@@ -197,6 +275,10 @@ internal
             {
                 _sharedTextLayoutCache.Clear();
             }
+            else if (change.Property == DrawOperationFactoryProperty)
+            {
+                EnsureInvalidationSourceSubscription();
+            }
 
             if (change.Property == FontFamilyProperty ||
                 change.Property == FontSizeProperty ||
@@ -210,7 +292,9 @@ internal
                 change.Property == DrawingModeProperty ||
                 change.Property == TextLayoutCacheModeProperty ||
                 change.Property == SharedTextLayoutCacheCapacityProperty ||
-                change.Property == DrawOperationLayoutFastPathProperty)
+                change.Property == DrawOperationLayoutFastPathProperty ||
+                change.Property == RenderInvalidationTokenProperty ||
+                change.Property == LayoutInvalidationTokenProperty)
             {
                 NotifyPropertyChanged(change.Property.Name);
             }
@@ -284,6 +368,8 @@ internal
 
         private DataGridCustomDrawingCell CreateDisplayElement(DataGridCell cell, object dataItem, bool bindValue)
         {
+            EnsureInvalidationSourceSubscription();
+
             var drawingCell = new DataGridCustomDrawingCell
             {
                 Name = "CellCustomDrawing",
@@ -365,6 +451,12 @@ internal
                 case nameof(DrawOperationLayoutFastPath):
                     DataGridHelper.SyncColumnProperty(this, drawingCell, DataGridCustomDrawingCell.DrawOperationLayoutFastPathProperty, DrawOperationLayoutFastPathProperty);
                     break;
+                case nameof(RenderInvalidationToken):
+                    DataGridHelper.SyncColumnProperty(this, drawingCell, DataGridCustomDrawingCell.RenderInvalidationTokenProperty, RenderInvalidationTokenProperty);
+                    break;
+                case nameof(LayoutInvalidationToken):
+                    DataGridHelper.SyncColumnProperty(this, drawingCell, DataGridCustomDrawingCell.LayoutInvalidationTokenProperty, LayoutInvalidationTokenProperty);
+                    break;
             }
 
             drawingCell.SharedTextLayoutCache = _sharedTextLayoutCache;
@@ -413,6 +505,8 @@ internal
             DataGridHelper.SyncColumnProperty(this, content, DataGridCustomDrawingCell.TextLayoutCacheModeProperty, TextLayoutCacheModeProperty);
             DataGridHelper.SyncColumnProperty(this, content, DataGridCustomDrawingCell.SharedTextLayoutCacheCapacityProperty, SharedTextLayoutCacheCapacityProperty);
             DataGridHelper.SyncColumnProperty(this, content, DataGridCustomDrawingCell.DrawOperationLayoutFastPathProperty, DrawOperationLayoutFastPathProperty);
+            DataGridHelper.SyncColumnProperty(this, content, DataGridCustomDrawingCell.RenderInvalidationTokenProperty, RenderInvalidationTokenProperty);
+            DataGridHelper.SyncColumnProperty(this, content, DataGridCustomDrawingCell.LayoutInvalidationTokenProperty, LayoutInvalidationTokenProperty);
 
             if (content is DataGridCustomDrawingCell drawingCell)
             {
@@ -440,6 +534,63 @@ internal
 
             // Avoid permanently caching null before the column is attached to a grid.
             return OwningGrid == null ? null : themeCache.Value;
+        }
+
+        private void UpdateInvalidationSourceSubscription(
+            IDataGridCellDrawOperationFactory oldFactory,
+            IDataGridCellDrawOperationFactory newFactory)
+        {
+            if (ReferenceEquals(oldFactory, newFactory))
+            {
+                return;
+            }
+
+            if (oldFactory is IDataGridCellDrawOperationInvalidationSource oldSource)
+            {
+                oldSource.Invalidated -= OnDrawOperationFactoryInvalidated;
+            }
+
+            if (newFactory is IDataGridCellDrawOperationInvalidationSource newSource)
+            {
+                newSource.Invalidated += OnDrawOperationFactoryInvalidated;
+            }
+        }
+
+        private void EnsureInvalidationSourceSubscription()
+        {
+            var targetFactory = OwningGrid != null ? DrawOperationFactory : null;
+            if (ReferenceEquals(_subscribedInvalidationFactory, targetFactory))
+            {
+                return;
+            }
+
+            UpdateInvalidationSourceSubscription(_subscribedInvalidationFactory, targetFactory);
+            _subscribedInvalidationFactory = targetFactory;
+        }
+
+        private void OnDrawOperationFactoryInvalidated(object sender, DataGridCellDrawOperationInvalidatedEventArgs e)
+        {
+            e ??= new DataGridCellDrawOperationInvalidatedEventArgs();
+
+            void InvalidateCells()
+            {
+                InvalidateCustomDrawingCells(e.InvalidateMeasure, e.ClearTextLayoutCache);
+            }
+
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                InvalidateCells();
+                return;
+            }
+
+            Dispatcher.UIThread.Post(InvalidateCells, DispatcherPriority.Render);
+        }
+
+        internal override void ClearElementCache()
+        {
+            UpdateInvalidationSourceSubscription(_subscribedInvalidationFactory, null);
+            _subscribedInvalidationFactory = null;
+            base.ClearElementCache();
         }
     }
 }

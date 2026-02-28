@@ -1,6 +1,7 @@
 // Copyright (c) Wiesław Šoltés. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for details.
 
+using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
@@ -10,7 +11,9 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Rendering.SceneGraph;
 using Avalonia.Styling;
+using Avalonia.Threading;
 using System.Reflection;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Avalonia.Controls.DataGridTests.Columns;
@@ -233,6 +236,96 @@ public class DataGridCustomDrawingColumnTests
         Assert.Equal(3, editor.SelectionEnd);
     }
 
+    [AvaloniaFact]
+    public void CustomDrawingColumn_InvalidateCustomDrawingCells_Increments_RenderToken()
+    {
+        var column = new TestCustomDrawingColumn();
+
+        Assert.Equal(0, column.RenderInvalidationToken);
+        Assert.Equal(0, column.LayoutInvalidationToken);
+
+        column.InvalidateCustomDrawingCells();
+
+        Assert.Equal(1, column.RenderInvalidationToken);
+        Assert.Equal(0, column.LayoutInvalidationToken);
+    }
+
+    [AvaloniaFact]
+    public void CustomDrawingColumn_InvalidateCustomDrawingCells_From_BackgroundThread_Marshals_To_UI()
+    {
+        var column = new TestCustomDrawingColumn();
+
+        Assert.Equal(0, column.RenderInvalidationToken);
+
+        Task.Run(() => column.InvalidateCustomDrawingCells()).GetAwaiter().GetResult();
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(1, column.RenderInvalidationToken);
+    }
+
+    [AvaloniaFact]
+    public void CustomDrawingColumn_InvalidateCustomDrawingCells_Refreshes_DisplayCell_Tokens()
+    {
+        var column = new TestCustomDrawingColumn
+        {
+            Header = "Name",
+            Binding = new Binding("Name")
+        };
+
+        var cell = column.CreateDisplayElement(new DataGridCell(), new Person { Name = "Ada" });
+        Assert.Equal(0, cell.RenderInvalidationToken);
+        Assert.Equal(0, cell.LayoutInvalidationToken);
+
+        column.InvalidateCustomDrawingCells(invalidateMeasure: true);
+        column.RefreshCellContentPublic(cell, nameof(DataGridCustomDrawingColumn.RenderInvalidationToken));
+        column.RefreshCellContentPublic(cell, nameof(DataGridCustomDrawingColumn.LayoutInvalidationToken));
+
+        Assert.Equal(1, cell.RenderInvalidationToken);
+        Assert.Equal(1, cell.LayoutInvalidationToken);
+    }
+
+    [AvaloniaFact]
+    public void CustomDrawingColumn_InvalidationSourceFactory_Updates_InvalidationTokens()
+    {
+        var factory = new InvalidatingDrawOperationFactory();
+        var column = new TestCustomDrawingColumn
+        {
+            DrawOperationFactory = factory
+        };
+        var grid = new DataGrid();
+        grid.ColumnsInternal.Add(column);
+        _ = column.CreateDisplayElement(new DataGridCell(), new Person { Name = "Ada" });
+
+        Assert.Equal(0, column.RenderInvalidationToken);
+        Assert.Equal(0, column.LayoutInvalidationToken);
+
+        factory.RaiseInvalidated(new DataGridCellDrawOperationInvalidatedEventArgs(invalidateMeasure: true));
+
+        Assert.Equal(1, column.RenderInvalidationToken);
+        Assert.Equal(1, column.LayoutInvalidationToken);
+    }
+
+    [AvaloniaFact]
+    public void CustomDrawingColumn_InvalidationSourceFactory_Unsubscribes_When_Column_Removed()
+    {
+        var factory = new InvalidatingDrawOperationFactory();
+        var column = new TestCustomDrawingColumn
+        {
+            DrawOperationFactory = factory
+        };
+        var grid = new DataGrid();
+        grid.ColumnsInternal.Add(column);
+        _ = column.CreateDisplayElement(new DataGridCell(), new Person { Name = "Ada" });
+
+        factory.RaiseInvalidated(new DataGridCellDrawOperationInvalidatedEventArgs());
+        Assert.Equal(1, column.RenderInvalidationToken);
+
+        grid.ColumnsInternal.Remove(column);
+        factory.RaiseInvalidated(new DataGridCellDrawOperationInvalidatedEventArgs());
+
+        Assert.Equal(1, column.RenderInvalidationToken);
+    }
+
     private sealed class TestCustomDrawingColumn : DataGridCustomDrawingColumn
     {
         public DataGridCustomDrawingCell CreateDisplayElement(DataGridCell cell, object dataItem)
@@ -294,6 +387,23 @@ public class DataGridCustomDrawingColumnTests
         {
             arrangedSize = context.FinalSize;
             return true;
+        }
+    }
+
+    private sealed class InvalidatingDrawOperationFactory :
+        IDataGridCellDrawOperationFactory,
+        IDataGridCellDrawOperationInvalidationSource
+    {
+        public event EventHandler<DataGridCellDrawOperationInvalidatedEventArgs>? Invalidated;
+
+        public ICustomDrawOperation CreateDrawOperation(DataGridCellDrawOperationContext context)
+        {
+            return new TestDrawOperation(context.Bounds);
+        }
+
+        public void RaiseInvalidated(DataGridCellDrawOperationInvalidatedEventArgs args)
+        {
+            Invalidated?.Invoke(this, args);
         }
     }
 

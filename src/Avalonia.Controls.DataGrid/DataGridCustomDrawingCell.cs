@@ -83,9 +83,19 @@ namespace Avalonia.Controls
                 nameof(DrawOperationLayoutFastPath),
                 false);
 
+        public static readonly StyledProperty<int> RenderInvalidationTokenProperty =
+            AvaloniaProperty.Register<DataGridCustomDrawingCell, int>(
+                nameof(RenderInvalidationToken),
+                0);
+
+        public static readonly StyledProperty<int> LayoutInvalidationTokenProperty =
+            AvaloniaProperty.Register<DataGridCustomDrawingCell, int>(
+                nameof(LayoutInvalidationToken),
+                0);
+
         static DataGridCustomDrawingCell()
         {
-            AffectsRender<DataGridCustomDrawingCell>(ForegroundProperty);
+            AffectsRender<DataGridCustomDrawingCell>(ForegroundProperty, RenderInvalidationTokenProperty);
         }
 
         /// <summary>
@@ -190,6 +200,26 @@ namespace Avalonia.Controls
             set => SetValue(DrawOperationLayoutFastPathProperty, value);
         }
 
+        /// <summary>
+        /// Gets or sets the render invalidation token for this realized cell.
+        /// Incrementing this value forces redraw for the custom drawing content.
+        /// </summary>
+        public int RenderInvalidationToken
+        {
+            get => GetValue(RenderInvalidationTokenProperty);
+            set => SetValue(RenderInvalidationTokenProperty, value);
+        }
+
+        /// <summary>
+        /// Gets or sets the layout invalidation token for this realized cell.
+        /// Incrementing this value forces measure/arrange and redraw.
+        /// </summary>
+        public int LayoutInvalidationToken
+        {
+            get => GetValue(LayoutInvalidationTokenProperty);
+            set => SetValue(LayoutInvalidationTokenProperty, value);
+        }
+
         internal DataGridCell OwningCell { get; set; }
 
         internal DataGridCustomDrawingTextLayoutCache SharedTextLayoutCache
@@ -291,6 +321,16 @@ namespace Avalonia.Controls
                 change.Property == FlowDirectionProperty ||
                 change.Property == TextLayoutCacheModeProperty ||
                 change.Property == DrawOperationLayoutFastPathProperty)
+            {
+                InvalidateTextLayout();
+                InvalidateMeasure();
+                InvalidateVisual();
+            }
+            else if (change.Property == RenderInvalidationTokenProperty)
+            {
+                InvalidateVisual();
+            }
+            else if (change.Property == LayoutInvalidationTokenProperty)
             {
                 InvalidateTextLayout();
                 InvalidateMeasure();
