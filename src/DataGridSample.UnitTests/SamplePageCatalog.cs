@@ -58,6 +58,7 @@ internal static class SamplePageCatalog
             ("DataGridSample.Pages.ContentControlSwapPage", static () => new global::DataGridSample.Pages.ContentControlSwapPage()),
             ("DataGridSample.Pages.CurrentCellPage", static () => new global::DataGridSample.Pages.CurrentCellPage()),
             ("DataGridSample.Pages.CurrentRowPseudoClassPage", static () => new global::DataGridSample.Pages.CurrentRowPseudoClassPage()),
+            ("DataGridSample.Pages.CustomDrawingLiveUpdatesPage", static () => new global::DataGridSample.Pages.CustomDrawingLiveUpdatesPage()),
             ("DataGridSample.Pages.CustomSelectionModelPage", static () => new global::DataGridSample.Pages.CustomSelectionModelPage()),
             ("DataGridSample.Pages.CustomTextColumnPage", static () => new global::DataGridSample.Pages.CustomTextColumnPage()),
             ("DataGridSample.Pages.DetachWhileEditingPage", static () => new global::DataGridSample.Pages.DetachWhileEditingPage()),

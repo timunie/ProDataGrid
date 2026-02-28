@@ -353,6 +353,9 @@
     <TabItem Header="Custom Drawing Columns (Editing)">
       <pages:CustomDrawingEditingPage />
     </TabItem>
+    <TabItem Header="Custom Drawing Columns (Live Updates)">
+      <pages:CustomDrawingLiveUpdatesPage />
+    </TabItem>
     <TabItem Header="Scroll Snap &amp; Details">
       <local:ScrollInteractionsPage />
     </TabItem>
