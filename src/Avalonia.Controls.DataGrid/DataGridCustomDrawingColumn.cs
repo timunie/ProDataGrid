@@ -137,6 +137,21 @@ internal
         }
 
         /// <summary>
+        /// Gets or sets draw-operation rendering backend for realized cells.
+        /// </summary>
+        public static readonly StyledProperty<DataGridCustomDrawingRenderBackend> RenderBackendProperty =
+            DataGridCustomDrawingCell.RenderBackendProperty.AddOwner<DataGridCustomDrawingColumn>();
+
+        /// <summary>
+        /// Gets or sets draw-operation rendering backend for realized cells.
+        /// </summary>
+        public DataGridCustomDrawingRenderBackend RenderBackend
+        {
+            get => GetValue(RenderBackendProperty);
+            set => SetValue(RenderBackendProperty, value);
+        }
+
+        /// <summary>
         /// Gets or sets text layout cache mode for realized cells.
         /// </summary>
         public static readonly StyledProperty<DataGridCustomDrawingTextLayoutCacheMode> TextLayoutCacheModeProperty =
@@ -290,6 +305,7 @@ internal
                 change.Property == TextTrimmingProperty ||
                 change.Property == DrawOperationFactoryProperty ||
                 change.Property == DrawingModeProperty ||
+                change.Property == RenderBackendProperty ||
                 change.Property == TextLayoutCacheModeProperty ||
                 change.Property == SharedTextLayoutCacheCapacityProperty ||
                 change.Property == DrawOperationLayoutFastPathProperty ||
@@ -442,6 +458,9 @@ internal
                 case nameof(DrawingMode):
                     DataGridHelper.SyncColumnProperty(this, drawingCell, DataGridCustomDrawingCell.DrawingModeProperty, DrawingModeProperty);
                     break;
+                case nameof(RenderBackend):
+                    DataGridHelper.SyncColumnProperty(this, drawingCell, DataGridCustomDrawingCell.RenderBackendProperty, RenderBackendProperty);
+                    break;
                 case nameof(TextLayoutCacheMode):
                     DataGridHelper.SyncColumnProperty(this, drawingCell, DataGridCustomDrawingCell.TextLayoutCacheModeProperty, TextLayoutCacheModeProperty);
                     break;
@@ -502,6 +521,7 @@ internal
             DataGridHelper.SyncColumnProperty(this, content, DataGridCustomDrawingCell.TextTrimmingProperty, TextTrimmingProperty);
             DataGridHelper.SyncColumnProperty(this, content, DataGridCustomDrawingCell.DrawOperationFactoryProperty, DrawOperationFactoryProperty);
             DataGridHelper.SyncColumnProperty(this, content, DataGridCustomDrawingCell.DrawingModeProperty, DrawingModeProperty);
+            DataGridHelper.SyncColumnProperty(this, content, DataGridCustomDrawingCell.RenderBackendProperty, RenderBackendProperty);
             DataGridHelper.SyncColumnProperty(this, content, DataGridCustomDrawingCell.TextLayoutCacheModeProperty, TextLayoutCacheModeProperty);
             DataGridHelper.SyncColumnProperty(this, content, DataGridCustomDrawingCell.SharedTextLayoutCacheCapacityProperty, SharedTextLayoutCacheCapacityProperty);
             DataGridHelper.SyncColumnProperty(this, content, DataGridCustomDrawingCell.DrawOperationLayoutFastPathProperty, DrawOperationLayoutFastPathProperty);

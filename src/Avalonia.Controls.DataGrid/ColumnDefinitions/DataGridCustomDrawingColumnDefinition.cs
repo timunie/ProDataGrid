@@ -28,6 +28,7 @@ namespace Avalonia.Controls
         private bool _hasTextTrimming;
         private IDataGridCellDrawOperationFactory _drawOperationFactory;
         private DataGridCustomDrawingMode? _drawingMode;
+        private DataGridCustomDrawingRenderBackend? _renderBackend;
         private DataGridCustomDrawingTextLayoutCacheMode? _textLayoutCacheMode;
         private int? _sharedTextLayoutCacheCapacity;
         private bool? _drawOperationLayoutFastPath;
@@ -94,6 +95,12 @@ namespace Avalonia.Controls
         {
             get => _drawingMode;
             set => SetProperty(ref _drawingMode, value);
+        }
+
+        public DataGridCustomDrawingRenderBackend? RenderBackend
+        {
+            get => _renderBackend;
+            set => SetProperty(ref _renderBackend, value);
         }
 
         public DataGridCustomDrawingTextLayoutCacheMode? TextLayoutCacheMode
@@ -216,6 +223,15 @@ namespace Avalonia.Controls
             else
             {
                 drawingColumn.ClearValue(DataGridCustomDrawingColumn.DrawingModeProperty);
+            }
+
+            if (RenderBackend.HasValue)
+            {
+                drawingColumn.RenderBackend = RenderBackend.Value;
+            }
+            else
+            {
+                drawingColumn.ClearValue(DataGridCustomDrawingColumn.RenderBackendProperty);
             }
 
             if (TextLayoutCacheMode.HasValue)
@@ -361,6 +377,16 @@ namespace Avalonia.Controls
                     else
                     {
                         drawingColumn.ClearValue(DataGridCustomDrawingColumn.DrawingModeProperty);
+                    }
+                    return true;
+                case nameof(RenderBackend):
+                    if (RenderBackend.HasValue)
+                    {
+                        drawingColumn.RenderBackend = RenderBackend.Value;
+                    }
+                    else
+                    {
+                        drawingColumn.ClearValue(DataGridCustomDrawingColumn.RenderBackendProperty);
                     }
                     return true;
                 case nameof(TextLayoutCacheMode):
