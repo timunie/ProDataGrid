@@ -478,6 +478,20 @@ internal
             }
 
             UpdateTrackedCollectionValidationItemState(notifyDataErrorInfo);
+
+            if (TryGetRowIndexFromItem(notifyDataErrorInfo, out int rowIndex))
+            {
+                int slot = SlotFromRowIndex(rowIndex);
+                if (slot >= DisplayData.FirstScrollingSlot && slot <= DisplayData.LastScrollingSlot)
+                {
+                    if (DisplayData.GetDisplayedElement(slot) is DataGridRow row)
+                    {
+                        RestoreRowValidationState(row, notifyDataErrorInfo);
+                        return;
+                    }
+                }
+            }
+
             UpdateGridValidationState();
         }
 
