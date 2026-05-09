@@ -654,7 +654,7 @@ namespace Avalonia.Controls
                     }
 
                     List<object> values = null;
-                    if (!context.TryResolveFilteringValue(descriptor.ValueToken, out var value) && !DataGridStatePersistenceValueConverter.TryReadValue(descriptor.Value, out value, out _))
+                    if (!context.TryResolveFilteringValue(descriptor.ValueToken, out var value) && !DataGridStatePersistenceValueConverter.TryReadValue(descriptor.Value, out value, out _) || value == null)
                     {
                         if (!context.TryResolveFilteringValues(descriptor.ValuesTokens, out values) && !TryMapValuesToRuntime(descriptor.Values, $"Filtering.Descriptors[{i}].Values", context, out values))
                         {

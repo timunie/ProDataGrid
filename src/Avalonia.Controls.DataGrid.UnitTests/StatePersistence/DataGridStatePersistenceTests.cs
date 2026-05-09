@@ -731,6 +731,88 @@ public class DataGridStatePersistenceTests
     }
 
     [Fact]
+    public void Mapper_RestoresValues_WhenInFilterScalarValuePersistedAsNull()
+    {
+        var persisted = new DataGridPersistedState
+        {
+            Version = 1,
+            Sections = DataGridStateSections.Filtering,
+            Filtering = new DataGridPersistedState.FilteringState
+            {
+                Descriptors = new[]
+                {
+                    new DataGridPersistedState.FilteringDescriptorState
+                    {
+                        ColumnId = PersistedString("Category"),
+                        Operator = FilteringOperator.In,
+                        PropertyPath = nameof(StateTestItem.Category),
+                        Value = new DataGridPersistedState.PersistedValue { Type = "null" },
+                        Values = new[]
+                        {
+                            PersistedString("A"),
+                            PersistedString("B")
+                        }
+                    }
+                },
+                OwnsViewFilter = false
+            }
+        };
+
+        var runtime = DataGridStatePersistenceMapper.ToRuntime(persisted, DataGridStateSections.Filtering, null, null);
+
+        Assert.Equal(DataGridStateSections.Filtering, runtime.Sections);
+        Assert.NotNull(runtime.Filtering);
+        Assert.Single(runtime.Filtering.Descriptors);
+        var descriptor = runtime.Filtering.Descriptors[0];
+        Assert.Equal(FilteringOperator.In, descriptor.Operator);
+        Assert.NotNull(descriptor.Values);
+        Assert.Equal(2, descriptor.Values.Count);
+        Assert.Equal("A", descriptor.Values[0]);
+        Assert.Equal("B", descriptor.Values[1]);
+    }
+
+    [Fact]
+    public void Mapper_RestoresValues_WhenBetweenFilterScalarValuePersistedAsNull()
+    {
+        var persisted = new DataGridPersistedState
+        {
+            Version = 1,
+            Sections = DataGridStateSections.Filtering,
+            Filtering = new DataGridPersistedState.FilteringState
+            {
+                Descriptors = new[]
+                {
+                    new DataGridPersistedState.FilteringDescriptorState
+                    {
+                        ColumnId = PersistedString("Id"),
+                        Operator = FilteringOperator.Between,
+                        PropertyPath = nameof(StateTestItem.Id),
+                        Value = new DataGridPersistedState.PersistedValue { Type = "null" },
+                        Values = new[]
+                        {
+                            new DataGridPersistedState.PersistedValue { Type = "int32", Value = "3" },
+                            new DataGridPersistedState.PersistedValue { Type = "int32", Value = "7" }
+                        }
+                    }
+                },
+                OwnsViewFilter = false
+            }
+        };
+
+        var runtime = DataGridStatePersistenceMapper.ToRuntime(persisted, DataGridStateSections.Filtering, null, null);
+
+        Assert.Equal(DataGridStateSections.Filtering, runtime.Sections);
+        Assert.NotNull(runtime.Filtering);
+        Assert.Single(runtime.Filtering.Descriptors);
+        var descriptor = runtime.Filtering.Descriptors[0];
+        Assert.Equal(FilteringOperator.Between, descriptor.Operator);
+        Assert.NotNull(descriptor.Values);
+        Assert.Equal(2, descriptor.Values.Count);
+        Assert.Equal(3, descriptor.Values[0]);
+        Assert.Equal(7, descriptor.Values[1]);
+    }
+
+    [Fact]
     public void PerSectionPersistenceRoundTrip_Search()
     {
         var runtime = new DataGridState
