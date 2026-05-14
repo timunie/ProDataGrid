@@ -38,6 +38,9 @@ namespace Avalonia.Diagnostics.ViewModels
         public override bool IsReadonly => _setter is null;
         public override string Priority => string.Empty;
         public override bool? IsAttached => null;
+        protected override object Target => this;
+        protected override string XamlPropertyName => _name;
+        protected override bool IsAvaloniaProperty => false;
 
         public override object? Value
         {
@@ -51,8 +54,10 @@ namespace Avalonia.Diagnostics.ViewModels
 
                 try
                 {
+                    var oldValue = _value;
                     _setter?.Invoke(value);
                     Update();
+                    NotifyPropertyEdited(oldValue, _value);
                 }
                 catch
                 {

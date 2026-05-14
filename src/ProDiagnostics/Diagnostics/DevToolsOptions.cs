@@ -44,6 +44,11 @@ namespace Avalonia.Diagnostics
           = Conventions.DefaultScreenshotHandler;
 
         /// <summary>
+        /// Gets or sets the handler notified after a DevTools property editor commits a value.
+        /// </summary>
+        public IDevToolsPropertyEditHandler? PropertyEditHandler { get; set; }
+
+        /// <summary>
         /// Gets or sets whether DevTools theme.
         /// </summary>
         public ThemeVariant? ThemeVariant { get; set; }

@@ -467,6 +467,8 @@ namespace Avalonia.Diagnostics.ViewModels
                 .Do(p =>
                     {
                         p.IsPinned = _pinnedProperties.Contains(p.FullName);
+                        p.InspectedObject = _avaloniaObject;
+                        p.PropertyEditHandler = TreePage.MainView.PropertyEditHandler;
                     })
                 .ToArray();
 

@@ -45,6 +45,7 @@ namespace Avalonia.Diagnostics.ViewModels
         private bool _showEventsTab = true;
         private bool _scopeEventsToRoot = true;
         private readonly HashSet<string> _pinnedProperties = new();
+        private IDevToolsPropertyEditHandler? _propertyEditHandler;
         private IBrush? _FocusHighlighter;
         private IDisposable? _currentFocusHighlightAdorner = default;
 
@@ -406,6 +407,7 @@ namespace Avalonia.Diagnostics.ViewModels
             ShowEventsTab = options.ShowEventsTab;
             ScopeEventsToRoot = options.ScopeEventsToRoot;
             ShowImplementedInterfaces = options.ShowImplementedInterfaces;
+            PropertyEditHandler = options.PropertyEditHandler;
             FocusHighlighter = options.FocusHighlighterBrush;
             SelectedTab = GetTabIndex(options.LaunchView);
 
@@ -481,6 +483,12 @@ namespace Avalonia.Diagnostics.ViewModels
         {
             get => _showImplementedInterfaces;
             private set => RaiseAndSetIfChanged(ref _showImplementedInterfaces, value);
+        }
+
+        public IDevToolsPropertyEditHandler? PropertyEditHandler
+        {
+            get => _propertyEditHandler;
+            private set => RaiseAndSetIfChanged(ref _propertyEditHandler, value);
         }
 
         public void ToggleShowImplementedInterfaces(object parameter)

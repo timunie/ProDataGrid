@@ -35,6 +35,11 @@ namespace Avalonia.Diagnostics.ViewModels
         public override bool? IsAttached => Property.IsAttached;
         public override string Priority => _priority;
         public override Type AssignedType => _assignedType;
+        protected override object Target => _target;
+        protected override string XamlPropertyName => Property.IsAttached
+            ? $"{Property.OwnerType.Name}.{Property.Name}"
+            : Property.Name;
+        protected override bool IsAvaloniaProperty => true;
 
         public override object? Value
         {
@@ -53,8 +58,10 @@ namespace Avalonia.Diagnostics.ViewModels
                         return;
                     }
 
+                    var oldValue = _value;
                     _target.SetValue(Property, value);
                     Update();
+                    NotifyPropertyEdited(oldValue, _value);
                 }
                 catch { }
             }

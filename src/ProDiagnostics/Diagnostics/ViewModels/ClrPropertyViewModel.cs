@@ -43,6 +43,9 @@ namespace Avalonia.Diagnostics.ViewModels
         public override Type AssignedType => _assignedType;
         public override Type PropertyType => _propertyType;
         public override bool IsReadonly => !Property.CanWrite;
+        protected override object Target => _target;
+        protected override string XamlPropertyName => Property.Name;
+        protected override bool IsAvaloniaProperty => false;
 
         public override object? Value
         {
@@ -56,8 +59,10 @@ namespace Avalonia.Diagnostics.ViewModels
                         return;
                     }
 
+                    var oldValue = _value;
                     Property.SetValue(_target, value);
                     Update();
+                    NotifyPropertyEdited(oldValue, _value);
                 }
                 catch { }
             }

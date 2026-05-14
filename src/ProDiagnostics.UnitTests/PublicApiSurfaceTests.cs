@@ -31,6 +31,8 @@ public class PublicApiSurfaceTests
             typeof(DevToolsStatusBarView),
             typeof(HotKeyConfiguration),
             typeof(DevToolsOptions),
+            typeof(IDevToolsPropertyEditHandler),
+            typeof(DevToolsPropertyEdit),
             typeof(IScreenshotHandler),
             typeof(BaseRenderToStreamHandler),
             typeof(FilePickerHandler)

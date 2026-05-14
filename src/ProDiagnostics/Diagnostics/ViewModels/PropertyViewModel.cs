@@ -1,4 +1,8 @@
 ﻿using System;
+using System.Diagnostics;
+using Avalonia;
+using Avalonia.Diagnostics;
+using Avalonia.Diagnostics.Services;
 
 namespace Avalonia.Diagnostics.ViewModels;
 
@@ -26,4 +30,61 @@ internal abstract class PropertyViewModel : ViewModelBase
     public bool IsPinned { get => _isPinned; set => RaiseAndSetIfChanged(ref _isPinned, value); }
 
     public string FullName => $"{GetType().Name.Replace("PropertyViewModel","")}:{DeclaringType?.FullName}.{Name}";
+
+    internal AvaloniaObject? InspectedObject { get; set; }
+
+    internal IDevToolsPropertyEditHandler? PropertyEditHandler { get; set; }
+
+    protected abstract object Target { get; }
+
+    protected abstract string XamlPropertyName { get; }
+
+    protected abstract bool IsAvaloniaProperty { get; }
+
+    protected void NotifyPropertyEdited(object? oldValue, object? newValue)
+    {
+        if (InspectedObject is not { } inspectedObject ||
+            PropertyEditHandler is not { } propertyEditHandler)
+        {
+            return;
+        }
+
+        try
+        {
+            propertyEditHandler.OnPropertyEdited(new DevToolsPropertyEdit(
+                inspectedObject,
+                Target,
+                Name,
+                XamlPropertyName,
+                PropertyType,
+                DeclaringType,
+                oldValue,
+                newValue,
+                ConvertValueToText(oldValue),
+                ConvertValueToText(newValue),
+                IsAttached == true,
+                IsAvaloniaProperty));
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(ex);
+        }
+    }
+
+    private static string? ConvertValueToText(object? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return PropertyValueEditorStringConversion.ToString(value);
+        }
+        catch
+        {
+            return value.ToString();
+        }
+    }
 }

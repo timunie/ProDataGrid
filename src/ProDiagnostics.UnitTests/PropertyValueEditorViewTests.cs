@@ -1,9 +1,11 @@
 using System;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Layout;
 using Xunit;
 
 namespace Avalonia.Diagnostics.UnitTests;
@@ -47,6 +49,38 @@ public class PropertyValueEditorViewTests
         Assert.False(editor.IsEnabled);
     }
 
+    [AvaloniaFact]
+    public void Property_edit_handler_is_notified_after_value_commit()
+    {
+        var target = new Button { Width = 24 };
+        using var mainViewModel = new Avalonia.Diagnostics.ViewModels.MainViewModel(target);
+        var handler = new RecordingPropertyEditHandler();
+        mainViewModel.SetOptions(new DevToolsOptions { PropertyEditHandler = handler });
+        mainViewModel.SelectControl(target);
+        var tree = Assert.IsType<Avalonia.Diagnostics.ViewModels.TreePageViewModel>(
+            mainViewModel.GetContent(DevToolsViewKind.CombinedTree));
+        var property = Assert.IsType<Avalonia.Diagnostics.ViewModels.AvaloniaPropertyViewModel>(
+            tree.Details!.PropertiesView!.Cast<object>()
+                .Single(item => item is Avalonia.Diagnostics.ViewModels.AvaloniaPropertyViewModel property &&
+                                property.Property == Layoutable.WidthProperty));
+
+        property.Value = 120d;
+
+        Assert.NotNull(handler.Edit);
+        var edit = handler.Edit!;
+        Assert.Same(target, edit.InspectedObject);
+        Assert.Same(target, edit.Target);
+        Assert.Equal("Width", edit.PropertyName);
+        Assert.Equal("Width", edit.XamlPropertyName);
+        Assert.Equal(typeof(double), edit.PropertyType);
+        Assert.Equal(24d, edit.OldValue);
+        Assert.Equal(120d, edit.NewValue);
+        Assert.Equal("24", edit.OldValueText);
+        Assert.Equal("120", edit.NewValueText);
+        Assert.False(edit.IsAttached);
+        Assert.True(edit.IsAvaloniaProperty);
+    }
+
     private static UserControl CreateView()
     {
         var viewType = typeof(DevToolsExtensions).Assembly
@@ -74,5 +108,15 @@ public class PropertyValueEditorViewTests
         public string? Name { get; set; }
 
         public bool ReadOnlyFlag => true;
+    }
+
+    private sealed class RecordingPropertyEditHandler : IDevToolsPropertyEditHandler
+    {
+        public DevToolsPropertyEdit? Edit { get; private set; }
+
+        public void OnPropertyEdited(DevToolsPropertyEdit edit)
+        {
+            Edit = edit;
+        }
     }
 }
