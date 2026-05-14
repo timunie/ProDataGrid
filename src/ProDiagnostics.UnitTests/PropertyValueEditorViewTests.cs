@@ -81,6 +81,47 @@ public class PropertyValueEditorViewTests
         Assert.True(edit.IsAvaloniaProperty);
     }
 
+    [AvaloniaFact]
+    public void Property_edit_handler_is_applied_to_existing_property_rows()
+    {
+        var target = new Button { Width = 24 };
+        using var mainViewModel = new Avalonia.Diagnostics.ViewModels.MainViewModel(target);
+        mainViewModel.SelectControl(target);
+        var tree = Assert.IsType<Avalonia.Diagnostics.ViewModels.TreePageViewModel>(
+            mainViewModel.GetContent(DevToolsViewKind.CombinedTree));
+        var property = Assert.IsType<Avalonia.Diagnostics.ViewModels.AvaloniaPropertyViewModel>(
+            tree.Details!.PropertiesView!.Cast<object>()
+                .Single(item => item is Avalonia.Diagnostics.ViewModels.AvaloniaPropertyViewModel property &&
+                                property.Property == Layoutable.WidthProperty));
+        var handler = new RecordingPropertyEditHandler();
+
+        mainViewModel.SetOptions(new DevToolsOptions { PropertyEditHandler = handler });
+        property.Value = 120d;
+
+        Assert.NotNull(handler.Edit);
+        Assert.Same(target, handler.Edit!.InspectedObject);
+    }
+
+    [AvaloniaFact]
+    public void Property_edit_handler_is_not_notified_for_effective_no_op()
+    {
+        var target = new Button { Width = 24 };
+        using var mainViewModel = new Avalonia.Diagnostics.ViewModels.MainViewModel(target);
+        var handler = new RecordingPropertyEditHandler();
+        mainViewModel.SetOptions(new DevToolsOptions { PropertyEditHandler = handler });
+        mainViewModel.SelectControl(target);
+        var tree = Assert.IsType<Avalonia.Diagnostics.ViewModels.TreePageViewModel>(
+            mainViewModel.GetContent(DevToolsViewKind.CombinedTree));
+        var property = Assert.IsType<Avalonia.Diagnostics.ViewModels.AvaloniaPropertyViewModel>(
+            tree.Details!.PropertiesView!.Cast<object>()
+                .Single(item => item is Avalonia.Diagnostics.ViewModels.AvaloniaPropertyViewModel property &&
+                                property.Property == Layoutable.WidthProperty));
+
+        property.Value = 24d;
+
+        Assert.Null(handler.Edit);
+    }
+
     private static UserControl CreateView()
     {
         var viewType = typeof(DevToolsExtensions).Assembly

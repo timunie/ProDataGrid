@@ -255,5 +255,10 @@ namespace Avalonia.Diagnostics.ViewModels
         {
             Details?.UpdatePropertiesView(MainView?.ShowImplementedInterfaces ?? true);
         }
+
+        internal void UpdatePropertyEditHandler()
+        {
+            Details?.UpdatePropertyEditHandler();
+        }
     }
 }

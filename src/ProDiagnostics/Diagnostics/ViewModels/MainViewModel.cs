@@ -488,7 +488,20 @@ namespace Avalonia.Diagnostics.ViewModels
         public IDevToolsPropertyEditHandler? PropertyEditHandler
         {
             get => _propertyEditHandler;
-            private set => RaiseAndSetIfChanged(ref _propertyEditHandler, value);
+            private set
+            {
+                if (RaiseAndSetIfChanged(ref _propertyEditHandler, value))
+                {
+                    UpdatePropertyEditHandlers();
+                }
+            }
+        }
+
+        private void UpdatePropertyEditHandlers()
+        {
+            _logicalTree.UpdatePropertyEditHandler();
+            _visualTree.UpdatePropertyEditHandler();
+            _combinedTree.UpdatePropertyEditHandler();
         }
 
         public void ToggleShowImplementedInterfaces(object parameter)

@@ -43,6 +43,11 @@ internal abstract class PropertyViewModel : ViewModelBase
 
     protected void NotifyPropertyEdited(object? oldValue, object? newValue)
     {
+        if (Equals(oldValue, newValue))
+        {
+            return;
+        }
+
         if (InspectedObject is not { } inspectedObject ||
             PropertyEditHandler is not { } propertyEditHandler)
         {

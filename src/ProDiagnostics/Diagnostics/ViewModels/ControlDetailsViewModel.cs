@@ -464,12 +464,7 @@ namespace Avalonia.Diagnostics.ViewModels
 
             var properties = GetAvaloniaProperties(o)
                 .Concat(GetClrProperties(o, _showImplementedInterfaces))
-                .Do(p =>
-                    {
-                        p.IsPinned = _pinnedProperties.Contains(p.FullName);
-                        p.InspectedObject = _avaloniaObject;
-                        p.PropertyEditHandler = TreePage.MainView.PropertyEditHandler;
-                    })
+                .Do(ApplyPropertyContext)
                 .ToArray();
 
             _propertyIndex = properties
@@ -492,6 +487,26 @@ namespace Avalonia.Diagnostics.ViewModels
                     inpc2.PropertyChanged += ControlPropertyChanged;
                     break;
             }
+        }
+
+        internal void UpdatePropertyEditHandler()
+        {
+            if (_propertyIndex is null)
+            {
+                return;
+            }
+
+            foreach (var property in _propertyIndex.Values.SelectMany(static properties => properties))
+            {
+                property.PropertyEditHandler = TreePage.MainView.PropertyEditHandler;
+            }
+        }
+
+        private void ApplyPropertyContext(PropertyViewModel property)
+        {
+            property.IsPinned = _pinnedProperties.Contains(property.FullName);
+            property.InspectedObject = _avaloniaObject;
+            property.PropertyEditHandler = TreePage.MainView.PropertyEditHandler;
         }
 
         internal void SelectProperty(AvaloniaProperty property)
