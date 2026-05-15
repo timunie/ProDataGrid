@@ -323,8 +323,7 @@ namespace Avalonia.Diagnostics.Services
             HashSet<object> seenKeys)
         {
             if (!seenKeys.Add(key) ||
-                !lookupHost.TryFindResource(key, themeVariant, out var value) ||
-                ReferenceEquals(value, AvaloniaProperty.UnsetValue))
+                !TryResolveResource(lookupHost, key, themeVariant, out var value))
             {
                 return;
             }
@@ -355,6 +354,24 @@ namespace Avalonia.Diagnostics.Services
                     scopePath,
                     entryThemeVariant,
                     DevToolsResourceReferenceKind.Dynamic));
+            }
+        }
+
+        private static bool TryResolveResource(
+            IResourceHost lookupHost,
+            object key,
+            ThemeVariant? themeVariant,
+            out object? value)
+        {
+            try
+            {
+                return lookupHost.TryFindResource(key, themeVariant, out value) &&
+                       !ReferenceEquals(value, AvaloniaProperty.UnsetValue);
+            }
+            catch
+            {
+                value = null;
+                return false;
             }
         }
 

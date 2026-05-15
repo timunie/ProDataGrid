@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
@@ -129,6 +130,36 @@ public class PropertyValueEditorViewTests
         target.Resources["AccentBrush"] = Brushes.Green;
 
         Assert.Equal(Brushes.Green, target.Background);
+    }
+
+    [AvaloniaFact]
+    public void Property_editor_skips_unresolvable_resource_candidates()
+    {
+        var target = new Button
+        {
+            Background = Brushes.Blue
+        };
+        target.Resources["AccentBrush"] = Brushes.Red;
+        Assert.IsType<ResourceDictionary>(target.Resources)
+            .AddDeferred("BrokenBrush", _ => throw new KeyNotFoundException("Static resource 'MissingBrush' not found."));
+
+        using var mainViewModel = new Avalonia.Diagnostics.ViewModels.MainViewModel(target);
+        mainViewModel.SelectControl(target);
+        var tree = Assert.IsType<Avalonia.Diagnostics.ViewModels.TreePageViewModel>(
+            mainViewModel.GetContent(DevToolsViewKind.CombinedTree));
+        var property = Assert.IsType<Avalonia.Diagnostics.ViewModels.AvaloniaPropertyViewModel>(
+            tree.Details!.PropertiesView!.Cast<object>()
+                .Single(item => item is Avalonia.Diagnostics.ViewModels.AvaloniaPropertyViewModel property &&
+                                property.Property == TemplatedControl.BackgroundProperty));
+
+        var view = CreateView();
+        view.DataContext = property;
+        var host = Assert.IsType<DockPanel>(view.Content);
+        var picker = Assert.IsType<ComboBox>(host.Children[0]);
+        var candidates = picker.Items.Cast<ResourceReferenceCandidate>().ToArray();
+
+        Assert.Contains(candidates, candidate => candidate.KeyText == "AccentBrush");
+        Assert.DoesNotContain(candidates, candidate => candidate.KeyText == "BrokenBrush");
     }
 
     [AvaloniaFact]
