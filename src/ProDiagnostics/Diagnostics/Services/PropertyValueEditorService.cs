@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Reflection;
+using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Shapes;
@@ -10,6 +12,7 @@ using Avalonia.Data;
 using Avalonia.Data.Converters;
 using Avalonia.Diagnostics.Controls;
 using Avalonia.Diagnostics.ViewModels;
+using Avalonia.Diagnostics.Views;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -26,6 +29,9 @@ namespace Avalonia.Diagnostics.Services
 
         private static readonly Geometry GeometryIcon = Geometry.Parse(
             "M23.25 15.5H30.8529C29.8865 8.99258 24.2763 4 17.5 4C10.0442 4 4 10.0442 4 17.5C4 24.2763 8.99258 29.8865 15.5 30.8529V23.25C15.5 18.9698 18.9698 15.5 23.25 15.5ZM23.25 18C20.3505 18 18 20.3505 18 23.25V38.75C18 41.6495 20.3505 44 23.25 44H38.75C41.6495 44 44 41.6495 44 38.75V23.25C44 20.3505 41.6495 18 38.75 18H23.25Z");
+
+        private static readonly Geometry ResourceIcon = Geometry.Parse(
+            "M5 4H19V8H5V4ZM5 10H19V14H5V10ZM5 16H19V20H5V16Z");
 
         private static readonly ColorToBrushConverter Color2Brush = new();
 
@@ -56,53 +62,82 @@ namespace Avalonia.Diagnostics.Services
                 return editor;
             }
 
-            var picker = new ComboBox
-            {
-                ItemsSource = candidates,
-                MinWidth = 72,
-                MaxWidth = 160,
-                PlaceholderText = "Resource",
-                IsEnabled = !viewModel.IsReadonly
-            };
-            ToolTip.SetTip(picker, "Set StaticResource or DynamicResource");
-
-            var isUpdating = false;
-            picker.SelectionChanged += (_, _) =>
-            {
-                if (isUpdating ||
-                    picker.SelectedItem is not ResourceReferenceCandidate candidate)
-                {
-                    return;
-                }
-
-                if (!viewModel.TrySetResourceReference(candidate, out var error))
-                {
-                    DataValidationErrors.SetError(picker, new InvalidOperationException(error ?? "Could not apply resource reference."));
-                    return;
-                }
-
-                DataValidationErrors.ClearErrors(picker);
-
-                try
-                {
-                    isUpdating = true;
-                    picker.SelectedItem = null;
-                }
-                finally
-                {
-                    isUpdating = false;
-                }
-            };
+            var resourceButton = CreateResourceReferenceButton(viewModel, candidates);
 
             var host = new DockPanel
             {
                 LastChildFill = true
             };
 
-            DockPanel.SetDock(picker, Dock.Right);
-            host.Children.Add(picker);
+            DockPanel.SetDock(resourceButton, Dock.Right);
+            host.Children.Add(resourceButton);
             host.Children.Add(editor);
             return host;
+        }
+
+        private static Button CreateResourceReferenceButton(
+            PropertyViewModel viewModel,
+            IReadOnlyList<ResourceReferenceCandidate> candidates)
+        {
+            var button = new Button
+            {
+                Width = 24,
+                MinWidth = 24,
+                Padding = new Thickness(0),
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                IsEnabled = !viewModel.IsReadonly,
+                Content = new Path
+                {
+                    Data = ResourceIcon,
+                    Width = 12,
+                    Height = 12,
+                    Fill = Brushes.Gray,
+                    Stretch = Stretch.Uniform
+                }
+            };
+            ToolTip.SetTip(button, "Select resource");
+
+            button.Click += async (_, _) =>
+            {
+                var candidate = await ShowResourceReferencePickerAsync(button, viewModel, candidates);
+                if (candidate is null)
+                {
+                    return;
+                }
+
+                if (!viewModel.TrySetResourceReference(candidate, out var error))
+                {
+                    DataValidationErrors.SetError(button, new InvalidOperationException(error ?? "Could not apply resource reference."));
+                    return;
+                }
+
+                DataValidationErrors.ClearErrors(button);
+            };
+
+            return button;
+        }
+
+        private static async Task<ResourceReferenceCandidate?> ShowResourceReferencePickerAsync(
+            Control ownerControl,
+            PropertyViewModel viewModel,
+            IReadOnlyList<ResourceReferenceCandidate> candidates)
+        {
+            var formatter = new ResourceNodeFormatter();
+            var picker = new ResourceReferencePickerWindow
+            {
+                DataContext = new ResourceReferencePickerViewModel(viewModel, candidates, formatter)
+            };
+
+            if (TopLevel.GetTopLevel(ownerControl) is Window owner)
+            {
+                return await picker.ShowDialog<ResourceReferenceCandidate?>(owner);
+            }
+
+            var completion = new TaskCompletionSource<ResourceReferenceCandidate?>();
+            picker.Closed += (_, _) => completion.TrySetResult(picker.SelectedCandidate);
+            picker.Show();
+            return await completion.Task;
         }
 
         private static void DetachFromResourceReferenceHost(Control editor)

@@ -111,13 +111,16 @@ public class PropertyValueEditorViewTests
         var view = CreateView();
         view.DataContext = property;
         var host = Assert.IsType<DockPanel>(view.Content);
-        var picker = Assert.IsType<ComboBox>(host.Children[0]);
-        var dynamicResource = picker.Items
-            .Cast<ResourceReferenceCandidate>()
+        var resourceButton = Assert.IsType<Button>(host.Children[0]);
+        Assert.Equal(24, resourceButton.Width);
+        Assert.NotNull(resourceButton.Content);
+
+        var dynamicResource = new ResourceReferenceSuggestionService()
+            .GetCandidates(property)
             .Single(candidate => candidate.Kind == DevToolsResourceReferenceKind.Dynamic &&
                                  candidate.KeyText == "AccentBrush");
 
-        picker.SelectedItem = dynamicResource;
+        Assert.True(property.TrySetResourceReference(dynamicResource, out var error), error);
 
         Assert.NotNull(handler.Edit);
         var edit = handler.Edit!;
@@ -155,11 +158,79 @@ public class PropertyValueEditorViewTests
         var view = CreateView();
         view.DataContext = property;
         var host = Assert.IsType<DockPanel>(view.Content);
-        var picker = Assert.IsType<ComboBox>(host.Children[0]);
-        var candidates = picker.Items.Cast<ResourceReferenceCandidate>().ToArray();
+        Assert.IsType<Button>(host.Children[0]);
+        var candidates = new ResourceReferenceSuggestionService()
+            .GetCandidates(property)
+            .ToArray();
 
         Assert.Contains(candidates, candidate => candidate.KeyText == "AccentBrush");
         Assert.DoesNotContain(candidates, candidate => candidate.KeyText == "BrokenBrush");
+    }
+
+    [AvaloniaFact]
+    public void Resource_reference_picker_groups_by_scope_and_filters_resources()
+    {
+        var target = new Button { Background = Brushes.Blue };
+        using var mainViewModel = new Avalonia.Diagnostics.ViewModels.MainViewModel(target);
+        mainViewModel.SelectControl(target);
+        var tree = Assert.IsType<Avalonia.Diagnostics.ViewModels.TreePageViewModel>(
+            mainViewModel.GetContent(DevToolsViewKind.CombinedTree));
+        var property = Assert.IsType<Avalonia.Diagnostics.ViewModels.AvaloniaPropertyViewModel>(
+            tree.Details!.PropertiesView!.Cast<object>()
+                .Single(item => item is Avalonia.Diagnostics.ViewModels.AvaloniaPropertyViewModel property &&
+                                property.Property == TemplatedControl.BackgroundProperty));
+        var candidates = new[]
+        {
+            new ResourceReferenceCandidate(
+                "AccentBrush",
+                "AccentBrush",
+                Brushes.Red,
+                typeof(ISolidColorBrush),
+                "Application / Resources",
+                null,
+                DevToolsResourceReferenceKind.Static),
+            new ResourceReferenceCandidate(
+                "AccentBrush",
+                "AccentBrush",
+                Brushes.Red,
+                typeof(ISolidColorBrush),
+                "Application / Resources",
+                null,
+                DevToolsResourceReferenceKind.Dynamic),
+            new ResourceReferenceCandidate(
+                "PanelBrush",
+                "PanelBrush",
+                Brushes.Gray,
+                typeof(ISolidColorBrush),
+                "Application / Styles",
+                "Dark",
+                DevToolsResourceReferenceKind.Static)
+        };
+        var picker = new Avalonia.Diagnostics.ViewModels.ResourceReferencePickerViewModel(
+            property,
+            candidates,
+            new ResourceNodeFormatter());
+
+        Assert.Equal(2, picker.ResourceCount);
+        Assert.Equal("All resources", picker.SelectedScope?.Name);
+        Assert.NotNull(FindScope(picker.Scopes[0], "Application / Resources"));
+        Assert.NotNull(FindScope(picker.Scopes[0], "Application / Styles"));
+
+        picker.ResourcesFilter.FilterString = "Accent";
+
+        Assert.Equal(1, picker.ResourceCount);
+        var entry = Assert.Single(picker.ResourcesView.Cast<Avalonia.Diagnostics.ViewModels.ResourceReferenceEntryViewModel>());
+        picker.SelectedResource = entry;
+        Assert.True(picker.CanUseStatic);
+        Assert.True(picker.CanUseDynamic);
+        Assert.NotNull(picker.GetSelectedCandidate(DevToolsResourceReferenceKind.Dynamic));
+
+        picker.ResourcesFilter.FilterString = string.Empty;
+        picker.SelectedScope = FindScope(picker.Scopes[0], "Application / Styles");
+
+        Assert.Equal(1, picker.ResourceCount);
+        Assert.Equal("PanelBrush", Assert.Single(
+            picker.ResourcesView.Cast<Avalonia.Diagnostics.ViewModels.ResourceReferenceEntryViewModel>()).KeyDisplay);
     }
 
     [AvaloniaFact]
@@ -255,6 +326,27 @@ public class PropertyValueEditorViewTests
             binder: null,
             args: new object[] { target, property! },
             culture: CultureInfo.InvariantCulture)!;
+    }
+
+    private static Avalonia.Diagnostics.ViewModels.ResourceReferenceScopeViewModel? FindScope(
+        Avalonia.Diagnostics.ViewModels.ResourceReferenceScopeViewModel scope,
+        string scopePath)
+    {
+        if (scope.ScopePath == scopePath)
+        {
+            return scope;
+        }
+
+        foreach (var child in scope.Children)
+        {
+            var result = FindScope(child, scopePath);
+            if (result != null)
+            {
+                return result;
+            }
+        }
+
+        return null;
     }
 
     private sealed class TestTarget
