@@ -29,7 +29,7 @@
                 AutoExpandSelectedItem="True"
                 AutoScrollToSelectedItem="True"
                 CanUserSortColumns="False"
-                CanUserResizeColumns="False"
+                CanUserResizeColumns="True"
                 CanUserReorderColumns="False"
                 SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
                 PointerMoved="UpdateAdorner"

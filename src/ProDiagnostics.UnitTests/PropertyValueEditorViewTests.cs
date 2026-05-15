@@ -390,13 +390,47 @@ public class PropertyValueEditorViewTests
             Dispatcher.UIThread.RunJobs();
 
             var filterTextBox = Assert.Single(view.GetVisualDescendants().OfType<FilterTextBox>());
+            var resourcesTree = view.GetControl<Control>("resourcesTree");
             var resourcesGrid = view.GetControl<Control>("resourcesGrid");
+            AssertGridAllowsColumnResize(resourcesTree);
             AssertResourceGridConfiguration(resourcesGrid);
 
             filterTextBox.Text = "Accent";
             Dispatcher.UIThread.RunJobs();
 
             Assert.Equal("Accent", resources.ResourcesFilter.FilterString);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public void Tree_page_grid_allows_column_resize()
+    {
+        var target = new Button();
+        using var mainViewModel = new Avalonia.Diagnostics.ViewModels.MainViewModel(target);
+        mainViewModel.SelectControl(target);
+        var tree = Assert.IsType<Avalonia.Diagnostics.ViewModels.TreePageViewModel>(
+            mainViewModel.GetContent(DevToolsViewKind.CombinedTree));
+        var view = new TreePageTreeView
+        {
+            DataContext = tree
+        };
+        var window = new Window
+        {
+            Content = view,
+            Width = 800,
+            Height = 600
+        };
+
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+
+            AssertGridAllowsColumnResize(view.GetControl<Control>("tree"));
         }
         finally
         {
@@ -522,14 +556,22 @@ public class PropertyValueEditorViewTests
 
     private static void AssertResourceGridConfiguration(Control grid)
     {
+        AssertGridAllowsColumnResize(grid);
+
         var gridType = grid.GetType();
-        Assert.Equal("Avalonia.Controls.DataGrid", gridType.FullName);
         Assert.Equal(true, gridType.GetProperty("CanUserSortColumns")!.GetValue(grid));
         Assert.Equal(false, gridType.GetProperty("OwnsSortDescriptions")!.GetValue(grid));
 
         var filteringModel = gridType.GetProperty("FilteringModel")!.GetValue(grid);
         Assert.NotNull(filteringModel);
         Assert.Equal(false, filteringModel!.GetType().GetProperty("OwnsViewFilter")!.GetValue(filteringModel));
+    }
+
+    private static void AssertGridAllowsColumnResize(Control grid)
+    {
+        var gridType = grid.GetType();
+        Assert.Equal("Avalonia.Controls.DataGrid", gridType.FullName);
+        Assert.Equal(true, gridType.GetProperty("CanUserResizeColumns")!.GetValue(grid));
     }
 
     private sealed class TestTarget
