@@ -219,6 +219,14 @@ internal
 
         private bool ItemHasError(INotifyDataErrorInfo notifyDataErrorInfo)
         {
+            // 1) Check entity-level errors (row-level)
+            if (HasErrorWithSeverityError(notifyDataErrorInfo, null) ||
+                HasErrorWithSeverityError(notifyDataErrorInfo, string.Empty))
+            {
+                return true;
+            }
+
+            // 2) Check errors for all column binding paths we know about
             foreach (var column in ColumnsItemsInternal)
             {
                 var bindingPath = GetColumnBindingPath(column);
@@ -227,27 +235,37 @@ internal
                     continue;
                 }
 
-                var errors = notifyDataErrorInfo.GetErrors(bindingPath);
-                if (errors is null)
-                {
-                    continue;
-                }
-
-                var exceptions = CreateValidationExceptions(errors);
-                if (exceptions.Count == 0)
-                {
-                    continue;
-                }
-
-                if (ValidationUtil.GetValidationSeverity(exceptions) == DataGridValidationSeverity.Error)
+                if (HasErrorWithSeverityError(notifyDataErrorInfo, bindingPath))
                 {
                     return true;
                 }
             }
 
+            // 3) Do NOT fall back to HasErrors blindly, because many view models
+            //    use warnings (non-error severity) which would leave the grid in
+            //    an invalid state even after real errors are cleared. We only
+            //    consider items erroneous when we can confirm Error severity on
+            //    entity-level or a known bound property.
             return false;
         }
 
+        private static bool HasErrorWithSeverityError(INotifyDataErrorInfo indei, string propertyName)
+        {
+            var errors = indei.GetErrors(propertyName);
+            if (errors is null)
+            {
+                return false;
+            }
+
+            var exceptions = CreateValidationExceptions(errors);
+            if (exceptions.Count == 0)
+            {
+                return false;
+            }
+
+            return ValidationUtil.GetValidationSeverity(exceptions) == DataGridValidationSeverity.Error;
+        }
+        
         private void OnDataSourceChangedForValidation()
         {
             InvalidateCollectionValidationState(clearTracking: true);
@@ -468,17 +486,13 @@ internal
         private void CollectionValidationItem_ErrorsChanged(object sender, DataErrorsChangedEventArgs e)
         {
             if (sender is not INotifyDataErrorInfo notifyDataErrorInfo)
-            {
                 return;
-            }
-
             if (!_collectionValidationTrackedItems.Contains(notifyDataErrorInfo))
-            {
                 return;
-            }
 
             UpdateTrackedCollectionValidationItemState(notifyDataErrorInfo);
 
+            // 1) Fast-path: resolve by row index
             if (TryGetRowIndexFromItem(notifyDataErrorInfo, out int rowIndex))
             {
                 int slot = SlotFromRowIndex(rowIndex);
@@ -492,6 +506,20 @@ internal
                 }
             }
 
+            // 2) Fallback: scan realized rows and refresh the one bound to this sender
+            if (DisplayData is not null)
+            {
+                for (int slot = DisplayData.FirstScrollingSlot; slot > -1 && slot <= DisplayData.LastScrollingSlot; slot++)
+                {
+                    if (DisplayData.GetDisplayedElement(slot) is DataGridRow r && ReferenceEquals(r.DataContext, notifyDataErrorInfo))
+                    {
+                        RestoreRowValidationState(r, notifyDataErrorInfo);
+                        return;
+                    }
+                }
+            }
+
+            // 3) Last resort: grid-level validity only
             UpdateGridValidationState();
         }
 
