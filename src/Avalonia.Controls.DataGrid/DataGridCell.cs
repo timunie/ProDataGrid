@@ -96,13 +96,27 @@ internal
         public bool IsValid
         {
             get { return _isValid; }
-            internal set { SetAndRaise(IsValidProperty, ref _isValid, value); }
+            internal set
+            {
+                if (SetAndRaise(IsValidProperty, ref _isValid, value))
+                {
+                    // Keep visual state in sync when validation changes.
+                    UpdatePseudoClasses();
+                }
+            }
         }
 
         public DataGridValidationSeverity ValidationSeverity
         {
             get { return _validationSeverity; }
-            internal set { SetAndRaise(ValidationSeverityProperty, ref _validationSeverity, value); }
+            internal set
+            {
+                if (SetAndRaise(ValidationSeverityProperty, ref _validationSeverity, value))
+                {
+                    // Refresh pseudo-classes (':invalid', ':warning', ':info') immediately on change.
+                    UpdatePseudoClasses();
+                }
+            }
         }
 
         /// <summary>
@@ -118,6 +132,7 @@ internal
                     SetAndRaise(OwningColumnProperty, ref _owningColumn, value);
                     OnOwningColumnSet(value);
                     ResetPseudoClassCache();
+                    UpdatePseudoClasses();
                 }
             }
         }
@@ -133,6 +148,7 @@ internal
                 {
                     SetAndRaise(OwningRowProperty, ref _owningRow, value);
                     ResetPseudoClassCache();
+                    UpdatePseudoClasses();
                 }
             }
         }

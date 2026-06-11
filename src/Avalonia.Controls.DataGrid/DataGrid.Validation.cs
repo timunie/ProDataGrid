@@ -102,6 +102,8 @@ internal
 
                 if (string.IsNullOrWhiteSpace(bindingPath))
                 {
+                    // No mappable property path for this column -> clear any stale validation on refresh
+                    ClearCellValidation(cell);
                     continue;
                 }
 
@@ -315,8 +317,10 @@ internal
 
         private void OnColumnsChangedForValidation()
         {
+            // If tracking hasn't been initialized yet, bootstrap it now so validation reacts to future changes
             if (!_collectionValidationStateInitialized)
             {
+                UpdateGridValidationState();
                 return;
             }
 

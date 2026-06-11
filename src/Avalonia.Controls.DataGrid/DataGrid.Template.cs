@@ -214,6 +214,8 @@ internal
 
             TryExecutePendingAutoScroll();
             UpdateKeyboardGestureSubscriptions();
+            
+            UpdateGridValidationState();
         }
 
 
