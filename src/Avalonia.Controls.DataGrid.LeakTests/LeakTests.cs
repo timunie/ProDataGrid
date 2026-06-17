@@ -338,9 +338,9 @@ public class LeakTests
     }
 
     [ReleaseFact]
-    public async Task ContentControl_TemplateSwap_BackgroundThread_DoesNotLeak_DataGrid()
+    public void ContentControl_TemplateSwap_BackgroundThread_DoesNotLeak_DataGrid()
     {
-        var gridRefs = await RunInSessionAsync(async () =>
+        var gridRefs = RunInSession(() =>
         {
             var gridRefs = new List<WeakReference>();
             var viewModel = new ReproMainViewModel();
@@ -408,17 +408,12 @@ public class LeakTests
             var runUntil = DateTime.UtcNow + TimeSpan.FromMilliseconds(300);
             while (DateTime.UtcNow < runUntil)
             {
-                await Task.Delay(10);
+                Thread.Sleep(10);
                 Dispatcher.UIThread.RunJobs();
             }
 
-            viewModel.StartStopCommand.Execute(null);
-
-            for (var i = 0; i < 100 && viewModel.IsRunning; i++)
-            {
-                await Task.Delay(10);
-                Dispatcher.UIThread.RunJobs();
-            }
+            viewModel.StopAsync().GetAwaiter().GetResult();
+            Dispatcher.UIThread.RunJobs();
 
             CleanupWindow(window!);
 
@@ -2155,6 +2150,7 @@ public class LeakTests
     private sealed class ReproMainViewModel : INotifyPropertyChanged
     {
         private CancellationTokenSource? _cts;
+        private Task? _worker;
         private ReproItemViewModel? _selectedItem;
 
         public ReproMainViewModel()
@@ -2184,41 +2180,66 @@ public class LeakTests
 
         public ICommand StartStopCommand { get; }
 
-        public bool IsRunning => _cts != null;
+        public bool IsRunning => _worker is { IsCompleted: false };
+
+        public async Task StopAsync()
+        {
+            var cts = _cts;
+            var worker = _worker;
+            if (cts == null || worker == null)
+            {
+                return;
+            }
+
+            cts.Cancel();
+            try
+            {
+                await worker.ConfigureAwait(false);
+            }
+            finally
+            {
+                cts.Dispose();
+                if (ReferenceEquals(_cts, cts))
+                {
+                    _cts = null;
+                    _worker = null;
+                }
+            }
+        }
 
         private void StartStop()
         {
-            if (_cts == null)
+            if (IsRunning)
             {
-                var cts = new CancellationTokenSource();
-                _cts = cts;
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        const int Delay = 20;
-                        while (!cts.IsCancellationRequested)
-                        {
-                            await Task.Delay(Delay, cts.Token).ConfigureAwait(false);
-                            SelectedItem = Items[0];
-
-                            await Task.Delay(Delay, cts.Token).ConfigureAwait(false);
-                            SelectedItem = Items[1];
-                        }
-                    }
-                    catch (OperationCanceledException)
-                    {
-                    }
-                    finally
-                    {
-                        SelectedItem = null;
-                        _cts = null;
-                    }
-                });
+                _ = StopAsync();
+                return;
             }
-            else
+
+            var cts = new CancellationTokenSource();
+            _cts = cts;
+            _worker = RunSelectionLoopAsync(cts);
+        }
+
+        private async Task RunSelectionLoopAsync(CancellationTokenSource cts)
+        {
+            try
             {
-                _cts.Cancel();
+                const int Delay = 20;
+                while (!cts.IsCancellationRequested)
+                {
+                    await Task.Delay(Delay, cts.Token).ConfigureAwait(false);
+                    SelectedItem = Items[0];
+
+                    await Task.Delay(Delay, cts.Token).ConfigureAwait(false);
+                    SelectedItem = Items[1];
+                }
+            }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested)
+            {
+            }
+            finally
+            {
+                SelectedItem = null;
             }
         }
 
