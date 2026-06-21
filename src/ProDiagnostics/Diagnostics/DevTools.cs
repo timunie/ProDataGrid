@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Diagnostics.Views;
@@ -90,34 +89,31 @@ namespace Avalonia.Diagnostics
             Window? owner, Application? app)
         {
             var focusedControl = owner?.FocusManager?.GetFocusedElement() as Control;
-            AvaloniaObject root = topLevelGroup switch
-            {
-                ClassicDesktopStyleApplicationLifetimeTopLevelGroup gr => new Controls.Application(gr, app ?? Application.Current!),
-                SingleViewTopLevelGroup gr => gr.Items.First(),
-                _ => new Controls.TopLevelGroup(topLevelGroup)
-            };
 
-            // If single static toplevel is already visible in another devtools window, focus it.
+            // If this request overlaps an already inspected top-level, focus the existing tools window.
             if (s_open.TryGetValue(topLevelGroup, out var mainWindow))
             {
                 mainWindow.Activate();
                 mainWindow.SelectedControl(focusedControl);
                 return Disposable.Empty;
             }
-            if (topLevelGroup.Items.Count == 1 && topLevelGroup.Items is not INotifyCollectionChanged)
-            {
-                var singleTopLevel = topLevelGroup.Items.First();
 
-                foreach (var group in s_open)
+            foreach (var group in s_open)
+            {
+                if (SharesTopLevel(topLevelGroup, group.Key))
                 {
-                    if (group.Key.Items.Contains(singleTopLevel))
-                    {
-                        group.Value.Activate();
-                        group.Value.SelectedControl(focusedControl);
-                        return Disposable.Empty;
-                    }
+                    group.Value.Activate();
+                    group.Value.SelectedControl(focusedControl);
+                    return Disposable.Empty;
                 }
             }
+
+            AvaloniaObject root = topLevelGroup switch
+            {
+                ClassicDesktopStyleApplicationLifetimeTopLevelGroup gr => new Controls.Application(gr, app ?? Application.Current!),
+                SingleViewTopLevelGroup gr => gr.Items.First(),
+                _ => new Controls.TopLevelGroup(topLevelGroup)
+            };
 
             var window = new MainWindow
             {
@@ -146,6 +142,24 @@ namespace Avalonia.Diagnostics
             var window = (MainWindow)sender!;
             window.Closed -= DevToolsClosed;
             s_open.Remove((IDevToolsTopLevelGroup)window.Tag!);
+        }
+
+        internal static int OpenWindowCount => s_open.Count;
+
+        internal static bool SharesTopLevel(IDevToolsTopLevelGroup left, IDevToolsTopLevelGroup right)
+        {
+            foreach (var leftItem in left.Items)
+            {
+                foreach (var rightItem in right.Items)
+                {
+                    if (ReferenceEquals(leftItem, rightItem))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         internal static bool DoesBelongToDevTool(this Visual v)
